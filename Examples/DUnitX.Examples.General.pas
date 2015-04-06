@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2012 Vincent Parrett                              }
+{           Copyright (C) 2013 Vincent Parrett                              }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -25,6 +25,12 @@
 {***************************************************************************}
 
 unit DUnitX.Examples.General;
+
+{$I DUnitX.inc}
+
+//{$IFDEF DELPHI_XE_UP}
+//{$STRONGLINKTYPES ON}
+//{$ENDIF}
 
 interface
 
@@ -56,7 +62,14 @@ type
     procedure AnotherTestMethod(const a : string; const b : integer);
 
     [Test]
+    [TestCase('Case4','password="",password=""')]
+    procedure TestCaseWithStrings(const AInput : string; const AResult : string);
+
+    [Test]
     procedure TestTwo;
+
+    [Test]
+    procedure TestError;
 
     //Disabled test
     [Test(false)]
@@ -155,7 +168,17 @@ end;
 
 procedure TMyExampleTests.AnotherTestMethod(const a: string; const b: integer);
 begin
-  TDUnitX.CurrentRunner.Status(Format('TestCaseBlah called with %s %d',[a,b]));
+  TDUnitX.CurrentRunner.Status(Format('AnotherTestMethod called with %s %d',[a,b]));
+end;
+
+procedure TMyExampleTests.TestCaseWithStrings(const AInput, AResult: string);
+begin
+  TDUnitX.CurrentRunner.Status(Format('TestCaseWithStrings called with %s %s',[AInput,AResult]));
+end;
+
+procedure TMyExampleTests.TestError;
+begin
+  raise Exception.Create('Error.');
 end;
 
 procedure TMyExampleTests.TestMeAnyway;
@@ -172,7 +195,7 @@ end;
 procedure TMyExampleTests.TestTwo;
 {$IFDEF DELPHI_XE_UP}
 var
-  x : TMyExampleTests;
+  x : TStringList;
 {$ENDIF}
 begin
   TDUnitX.CurrentRunner.Status('TestTwo called');
@@ -180,8 +203,9 @@ begin
 
   //No longer compatible for Delphi2010
 {$IFDEF DELPHI_XE_UP}
-  x := TMyExampleTests.Create;
+  x := TStringList.Create;
   Assert.IsType<TObject>(x); /// a bit pointless since it's strongly typed.
+  x.Free;
 {$ENDIF}
 end;
 
@@ -256,8 +280,10 @@ initialization
 //manual registration for now.
 
 //Register the test fixtures
+//{$IFNDEF DELPHI_XE_UP}
   TDUnitX.RegisterTestFixture(TMyExampleTests);
   TDUnitX.RegisterTestFixture(TExampleFixture2);
   TDUnitX.RegisterTestFixture(TExampleFixture3);
   TDUnitX.RegisterTestFixture(TExampleFixture5);
+//{$ENDIF}
 end.

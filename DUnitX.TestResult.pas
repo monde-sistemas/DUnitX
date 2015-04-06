@@ -68,6 +68,7 @@ type
     function GetExceptionLocationInfo : string;
     function GetExceptionAddressInfo : string;
     function GetExceptionMessage : string;
+    function GetExceptionAddress : Pointer;
   public
     constructor Create(const ATestInfo : ITestInfo; const AType : TTestResultType; const AThrownException: Exception; const Addrs: Pointer; const AMessage : string = '');reintroduce;
   end;
@@ -77,13 +78,6 @@ type
 implementation
 
 uses
-  {$IFDEF MSWINDOWS}
-    {$if CompilerVersion < 23 }
-      Windows,
-    {$else}
-      WinAPI.Windows, // Delphi XE2 (CompilerVersion 23) added scopes in front of unit names
-    {$ifend}
-  {$ENDIF}
   DUnitX.IoC;
 
 { TDUnitXTestResult }
@@ -150,8 +144,10 @@ end;
 { TDUnitXTestError }
 
 constructor TDUnitXTestError.Create(const ATestInfo : ITestInfo; const AType: TTestResultType; const AThrownException: Exception; const Addrs: Pointer;  const AMessage: string = '');
+{$IFDEF DELPHI_XE_UP}
 var
   stackTraceProvider : IStacktraceProvider;
+{$ENDIF}
 begin
   inherited Create(ATestInfo, AType, AMessage);
 
@@ -168,9 +164,16 @@ begin
   {$ENDIF}
 end;
 
+function TDUnitXTestError.GetExceptionAddress: Pointer;
+begin
+  Result := FExceptionAddress;
+end;
+
 function TDUnitXTestError.GetExceptionAddressInfo: string;
+{$IFDEF DELPHI_XE_UP}
 var
   stackTraceProvider : IStacktraceProvider;
+{$ENDIF}
 begin
   {$IFDEF DELPHI_XE_UP}
   stackTraceProvider := TDUnitXIoc.DefaultContainer.Resolve<IStacktraceProvider>();
@@ -187,8 +190,10 @@ begin
 end;
 
 function TDUnitXTestError.GetExceptionLocationInfo: string;
+{$IFDEF DELPHI_XE_UP}
 var
   stackTraceProvider : IStacktraceProvider;
+{$ENDIF}
 begin
   {$IFDEF DELPHI_XE_UP}
   stackTraceProvider := TDUnitXIoc.DefaultContainer.Resolve<IStacktraceProvider>();

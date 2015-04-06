@@ -35,6 +35,7 @@ uses
 type
   {$M+}
   [TestFixture('ExampleFixture1')]
+  [Category('examples')]
   TMyExampleTests = class
   public
     //Run the same test with mulitiple parameters.
@@ -59,7 +60,12 @@ type
     procedure AnotherTestMethod(const a : string; const b : integer);
 
     [Test]
+    [Category('Bar,foo')]
     procedure TestTwo;
+
+    [Test]
+    [Category('Bar,foo')]
+    procedure TestTwoOne;
 
     //Disabled test
     [Test(false)]
@@ -76,6 +82,7 @@ type
     procedure TearDown;
 
   published
+    [Category('blah')]
     procedure TestMeAnyway;
 
     [Ignore('I was told to ignore me anyway')]
@@ -92,6 +99,7 @@ type
     procedure SetupFixture;
     [Teardown]
     procedure TearDownFixture;
+    destructor Destroy;override;
   published
     procedure Published_Procedures_Are_Included_As_Tests;
   end;
@@ -153,17 +161,19 @@ end;
 procedure TMyExampleTests.AnotherTestMethod(const a: string; const b: integer);
 begin
   TDUnitX.CurrentRunner.Status(Format('TestCaseBlah called with %s %d',[a,b]));
+  Assert.Pass;
 end;
 
 procedure TMyExampleTests.TestMeAnyway;
 begin
   TDUnitX.CurrentRunner.Status('TestMeAnyway called');
-//  raise ENotImplemented.Create('I aint done');
+  Assert.Pass;
 end;
 
 procedure TMyExampleTests.TestOne(param1 : integer; param2 : integer);
 begin
   TDUnitX.CurrentRunner.Status(Format('TestOnce called with %d %d',[param1,param2]));
+  Assert.Pass;
 end;
 
 
@@ -176,9 +186,28 @@ begin
   //CheckIs(x,TObject); //DUnit compatibility.
   TDUnitX.CurrentRunner.Status('hello world');
   Assert.IsTrue(x is TObject); /// a bit pointless since it's strongly typed.
+  x.Free;
+end;
+
+procedure TMyExampleTests.TestTwoOne;
+var
+  x : TMyExampleTests;
+begin
+  TDUnitX.CurrentRunner.Status('TestTwo called');
+  x := TMyExampleTests.Create;
+  //CheckIs(x,TObject); //DUnit compatibility.
+  TDUnitX.CurrentRunner.Status('hello world');
+  Assert.IsTrue(x is TObject); /// a bit pointless since it's strongly typed.
+  x.Free;
 end;
 
 { TExampleFixture2 }
+
+destructor TExampleFixture2.Destroy;
+begin
+
+  inherited;
+end;
 
 procedure TExampleFixture2.Published_Procedures_Are_Included_As_Tests;
 begin

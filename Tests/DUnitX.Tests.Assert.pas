@@ -31,10 +31,13 @@ interface
 uses
   DUnitX.TestFramework;
 
+{$I DUnitX.inc}
+
 type
   {$M+}
   [TestFixture]
   TTestsAssert = class
+  private
   published
     [Test]
     procedure Pass_Throws_ETestPass_Exception;
@@ -57,9 +60,14 @@ type
     [Test]
     procedure AreEqual_Extended_Throws_ETestFailure_When_Values_Are_NotEqual;
     [Test]
+    procedure AreEqual_Double_Throws_No_Exception_When_Values_Are_Equal;
+    [Test]
+    procedure AreEqual_Double_Throws_ETestFailure_When_Values_Are_NotEqual;
+    [Test]
     procedure AreEqual_TClass_Throws_No_Exception_When_Classes_Are_Equal;
     [Test]
     procedure AreEqual_TClass_Throws_ETestFailure_When_Classes_Are_NotEqual;
+{$IFNDEF DELPHI_XE_DOWN}
     [Test]
     procedure AreEqual_T_Throws_No_Exception_When_Interfaces_Are_Equal;
     [Test]
@@ -72,12 +80,17 @@ type
     procedure AreEqual_T_Throws_ETestFailure_When_Objects_Are_NotEqual;
     [Test]
     procedure AreEqual_T_Throws_ETestFailure_When_Objects_Are_Nil;
+{$ENDIF}
     [Test]
     procedure AreEqualMemory_Throws_No_Exception_When_Pointers_Are_Equal;
     [Test]
     procedure AreEqualMemory_Throws_ETestFailure_When_Pointers_Are_NotEqual;
     [Test]
     procedure AreEqual_Throws_No_Exception_When_Values_Are_Exactly_Equal;
+    [Test]
+    procedure AreNotEqual_Integer_Throws_No_Exception_When_Values_Are_NotEqual;
+    [Test]
+    procedure AreNotEqual_Integer_Throws_Exception_When_Values_Are_Equal;
     [Test]
     procedure WillRaise_Without_Exception_Class_Will_Capture_Any_Exception;
     [Test]
@@ -88,13 +101,91 @@ type
     procedure WillRaiseWithMessage_Without_Exception_Class_With_Message_Will_Capture_Any_Exception_With_Message;
     [Test]
     procedure WillRaiseWithMessage_Exception_Not_Thrown_Throws_ETestFailure_Exception;
+    [Test]
+    procedure WillRaiseDescenadant_With_NonDescendingClass;
+    [Test]
+    procedure WillRaiseDescenadant_With_DescendingClass;
+    [Test]
+    procedure WillRaiseDescenadant_With_ExactClass;
+    [Test]
+    procedure WillRaiseAny;
+    [Test]
+    procedure WillRaiseAny_NoExecption;
+    [Test]
+    procedure WillNotRaise_With_ExactClass_Positive;
+    [Test]
+    procedure WillNotRaise_With_ExactClass_Negative;
+    [Test]
+    procedure WillNotRaise_With_DescendingClass_Positive;
+    [Test]
+    procedure WillNotRaise_With_DescendingClass_Negative;
+    [Test]
+    procedure WillNotRaise_With_NoClass;
+
+    [Test]
+    procedure Test_Implements_Will_Fail_If_Not_Implemented;
+
+    [Test]
+    procedure Test_Implements_Will_Pass_If_Implemented;
+
+    [Test]
+    procedure Test_AreSameOnSameObjectWithDifferentInterfaces_No_Exception;
+
+    [Test]
+    procedure Test_AreNotSameOnSameObjectWithDifferentInterfaces_Throws_Exception;
+
+    [Test]
+    procedure Contains_ArrayOfT_Throws_No_Exception_When_Value_In_Array;
+
+    [Test]
+    procedure Contains_ArrayOfT_Throws_Exception_When_Value_Not_In_Array;
+
+    [Test]
+    procedure DoesNotContain_ArrayOfT_Throws_No_Exception_When_Value_Not_In_Array;
+
+    [Test]
+    procedure DoesNotContain_ArrayOfT_Throws_Exception_When_Value_In_Array;
+
+    [Test]
+    [TestCase( 'substring', 'a str,a string,false' )]
+    [TestCase( 'substring - case sensitive', 'a str,a string,true' )]
+    procedure StartsWith_SubString_Is_At_The_Start__Of_String( const subString, theString: string; caseSensitive: boolean );
+    [Test]
+    [TestCase( 'empty substring', ',a string,false' )]
+    [TestCase( 'empty substring - case sensitive', ',a string,true' )]
+    [TestCase( 'empty string', 'substring,,false' )]
+    [TestCase( 'empty string - case sensitive', 'substring,,true' )]
+    [TestCase( 'at end of string', 'substring,at the end if the substring,false' )]
+    [TestCase( 'at end of string - case sensitive', 'substring,at the end if the substring,true' )]
+    [TestCase( 'in the middle of string', 'substring,the substring is in the middle,false' )]
+    [TestCase( 'in the middle of string - case sensitive', 'substring,the substring is in the middle,true' )]
+    [TestCase( 'not in the string', 'something else,the substring is not here,false' )]
+    [TestCase( 'not in the string - case sensitive', 'something else,the substring is not here,true' )]
+    procedure StartsWith_SubString_Is_Not_At_Start( const subString, theString: string; caseSensitive: boolean );
+
+    [Test]
+    [TestCase( 'substring', 'ing,a string,false' )]
+    [TestCase( 'substring - case sensitive', 'ing,a string,true' )]
+    procedure EndsWith_SubString_Is_At_The_End__Of_String( const subString, theString: string; caseSensitive: boolean );
+    [Test]
+    [TestCase( 'empty substring', ',a string,false' )]
+    [TestCase( 'empty substring - case sensitive', ',a string,true' )]
+    [TestCase( 'empty string', 'substring,,false' )]
+    [TestCase( 'empty string - case sensitive', 'substring,,true' )]
+    [TestCase( 'at start of string', 'at the,at the end if the substring,false' )]
+    [TestCase( 'at start of string - case sensitive', 'at the,at the end if the substring,true' )]
+    [TestCase( 'in the middle of string', 'substring,the substring is in the middle,false' )]
+    [TestCase( 'in the middle of string - case sensitive', 'substring,the substring is in the middle,true' )]
+    [TestCase( 'not in the string', 'something else,the substring is not here,false' )]
+    [TestCase( 'not in the string - case sensitive', 'something else,the substring is not here,true' )]
+    procedure EndsWith_SubString_Is_Not_At_End( const subString, theString: string; caseSensitive: boolean );
   end;
 
 implementation
 
 uses
-  Delphi.Mocks,
-  SysUtils;
+  SysUtils,
+  Classes;
 
 type
   {$M+}
@@ -107,6 +198,13 @@ type
   TMockClassOne = class(TObject)
   end;
   TMockClassTwo = class(TObject)
+  end;
+
+  IAmImplemented = interface
+    ['{4B503CDD-6262-403C-BF68-5D5DE01C3B13}']
+  end;
+
+  TImplemented = class(TInterfacedObject,IAmImplemented)
   end;
 
 { TTestAssert }
@@ -167,6 +265,7 @@ begin
     end;
 
   Assert.WillRaise(MyProc, ETestFailure);
+  MyProc := nil;
 end;
 
 procedure TTestsAssert.Pass_Throws_ETestPass_Exception;
@@ -189,6 +288,172 @@ begin
     end, ETestPass, EXPECTED_EXCEPTION_MSG);
 end;
 
+procedure TTestsAssert.Test_Implements_Will_Fail_If_Not_Implemented;
+var
+  obj : IInterface;
+  res : IAmImplemented;
+begin
+  obj := TInterfacedObject.Create;
+  Assert.WillRaise(
+  procedure
+  begin
+    res := Assert.Implements<IAmImplemented>(obj);
+  end,
+  ETestFailure);
+end;
+
+procedure TTestsAssert.Test_Implements_Will_Pass_If_Implemented;
+var
+  obj : IInterface;
+  res : IAmImplemented;
+begin
+  obj := TImplemented.Create;
+  Assert.WillNotRaiseAny(
+    procedure
+    begin
+      res := Assert.Implements<IAmImplemented>(obj);
+    end);
+  Assert.IsNotNull(res);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_DescendingClass_Negative;
+begin
+ Assert.WillRaise(
+  procedure
+  begin
+    Assert.WillNotRaiseDescendant(
+      procedure
+      begin
+        raise EFilerError.Create('Test');
+      end,
+      EStreamError);
+  end,
+  ETestFailure);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_DescendingClass_Positive;
+begin
+    Assert.WillNotRaiseDescendant(
+      procedure
+      begin
+        raise Exception.Create('Test');
+      end,
+      EStreamError);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_ExactClass_Negative;
+const
+  EXPECTED_EXCEPTION_MSG = 'Passing Message';
+begin
+ Assert.WillRaise(
+ procedure
+ begin
+   Assert.WillNotRaise(
+     procedure
+     begin
+       raise EStreamError.Create('Error Message');
+     end,
+     EStreamError,EXPECTED_EXCEPTION_MSG);
+ end,
+ ETestFailure,
+ EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_ExactClass_Positive;
+begin
+ Assert.WillNotRaise(
+   procedure
+   begin
+     // Don't raise an exception we are looking for.
+     raise Exception.Create('Error Message');
+   end,
+   EStreamError,'');
+end;
+
+procedure TTestsAssert.WillNotRaise_With_NoClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Passing Message';
+begin
+ Assert.WillRaise(
+ procedure
+ begin
+   Assert.WillNotRaise(
+     procedure
+     begin
+       // Raise an exception
+       raise Exception.Create('Error Message');
+     end);
+ end,
+ ETestFailure,
+ EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillRaiseAny;
+begin
+  Assert.WillRaiseAny(
+    procedure
+    begin
+      raise EAbort.Create('Test');
+    end);
+end;
+
+procedure TTestsAssert.WillRaiseAny_NoExecption;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+       Assert.WillRaiseAny(
+               procedure
+               begin
+                 // Do nothing on purpose.
+               end
+       );
+    end, ETestFailure, EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillRaiseDescenadant_With_DescendingClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+ Assert.WillRaiseDescendant(
+   procedure
+   begin
+     raise EFilerError.Create('Test');
+   end,
+   EStreamError,EXPECTED_EXCEPTION_MSG);
+
+end;
+
+procedure TTestsAssert.WillRaiseDescenadant_With_ExactClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+ Assert.WillRaiseDescendant(
+   procedure
+   begin
+     raise EFilerError.Create('Test');
+   end,
+   EFilerError,EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillRaiseDescenadant_With_NonDescendingClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+ Assert.WillRaise(
+   procedure
+   begin
+     Assert.WillRaiseDescendant(
+       procedure
+       begin
+         raise Exception.Create('Test');
+       end,
+       EStreamError,EXPECTED_EXCEPTION_MSG);
+   end,
+   ETestFailure,EXPECTED_EXCEPTION_MSG);
+end;
 
 procedure TTestsAssert.WillRaiseWithMessage_Exception_And_Message_Will_Check_ExceptionClass_And_Exception_Message;
 const
@@ -243,6 +508,7 @@ end;
 
 procedure TTestsAssert.AreEqualMemory_Throws_ETestFailure_When_Pointers_Are_NotEqual;
 begin
+  Assert.Pass;
 end;
 
 procedure TTestsAssert.AreEqualMemory_Throws_No_Exception_When_Pointers_Are_Equal;
@@ -258,25 +524,50 @@ begin
     end, ETestFailure);
 end;
 
+procedure TTestsAssert.AreEqual_Double_Throws_ETestFailure_When_Values_Are_NotEqual;
+const
+  ACTUAL_DOUBLE : double = 1.19E20;
+  EXPECTED_DOUBLE : double = 1.18E20;
+  TOLERANCE_DOUBLE : double = 0.001E20;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.AreEqual(ACTUAL_DOUBLE, EXPECTED_DOUBLE, TOLERANCE_DOUBLE);
+    end, ETestFailure, Format('[%e] with in [%e] from [%e]', [ACTUAL_DOUBLE, TOLERANCE_DOUBLE, EXPECTED_DOUBLE]));
+end;
+
+procedure TTestsAssert.AreEqual_Double_Throws_No_Exception_When_Values_Are_Equal;
+const
+  ACTUAL_DOUBLE : double = 1.19E20;
+  EXPECTED_DOUBLE : double  = 1.18E20;
+  TOLERANCE_DOUBLE : double  = 0.011E20;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.AreEqual(ACTUAL_DOUBLE, EXPECTED_DOUBLE, TOLERANCE_DOUBLE);
+    end, Exception);
+end;
+
 procedure TTestsAssert.AreEqual_Extended_Throws_ETestFailure_When_Values_Are_NotEqual;
 const
-  ACTUAL_EXTENDED = 1.19E20;
-  EXPECTED_EXTENDED = 1.18E20;
-  TOLERANCE_EXTENDED = 0.001E20;
+  ACTUAL_EXTENDED : extended  = 1.19E20;
+  EXPECTED_EXTENDED : extended = 1.18E20;
+  TOLERANCE_EXTENDED : extended = 0.001E20;
 begin
   Assert.WillRaise(
     procedure
     begin
       Assert.AreEqual(ACTUAL_EXTENDED, EXPECTED_EXTENDED, TOLERANCE_EXTENDED);
     end, ETestFailure, Format('[%e] with in [%e] from [%e]', [ACTUAL_EXTENDED, TOLERANCE_EXTENDED, EXPECTED_EXTENDED]));
-
 end;
 
 procedure TTestsAssert.AreEqual_Extended_Throws_No_Exception_When_Values_Are_Equal;
 const
-  ACTUAL_EXTENDED = 1.19E20;
-  EXPECTED_EXTENDED = 1.18E20;
-  TOLERANCE_EXTENDED = 0.011E20;
+  ACTUAL_EXTENDED : extended = 1.19E20;
+  EXPECTED_EXTENDED : extended = 1.18E20;
+  TOLERANCE_EXTENDED : extended = 0.011E20;
 begin
   Assert.WillNotRaise(
     procedure
@@ -341,6 +632,7 @@ begin
     end, Exception);
 end;
 
+{$IFNDEF DELPHI_XE_DOWN}
 procedure TTestsAssert.AreEqual_T_Throws_ETestFailure_When_Interfaces_Are_NotEqual;
 var
   mock : IInterface;
@@ -419,7 +711,6 @@ begin
     end, ETestFailure);
 end;
 
-
 procedure TTestsAssert.AreEqual_T_Throws_No_Exception_When_Interfaces_Are_Equal;
 var
   mock : IInterface;
@@ -448,6 +739,122 @@ begin
     FreeAndNil(mock);
   end;
 end;
+{$ENDIF}
+
+procedure TTestsAssert.Test_AreSameOnSameObjectWithDifferentInterfaces_No_Exception;
+var
+  myObject  : IInterfaceList;
+begin
+  myObject := TInterfaceList.Create;
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.AreSame(myObject, myObject as IInterface);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.Test_AreNotSameOnSameObjectWithDifferentInterfaces_Throws_Exception;
+var
+  myObject  : IInterfaceList;
+begin
+  myObject := TInterfaceList.Create;
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.AreNotSame(myObject, myObject as IInterface);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.AreNotEqual_Integer_Throws_No_Exception_When_Values_Are_NotEqual;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.AreNotEqual(1, 2);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.AreNotEqual_Integer_Throws_Exception_When_Values_Are_Equal;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.AreNotEqual(1, 1);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.Contains_ArrayOfT_Throws_No_Exception_When_Value_In_Array;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.Contains<string>(['x', 'y', 'z'], 'x');
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.Contains_ArrayOfT_Throws_Exception_When_Value_Not_In_Array;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.Contains<string>(['x', 'y', 'z'], 'a');
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.DoesNotContain_ArrayOfT_Throws_No_Exception_When_Value_Not_In_Array;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.DoesNotContain<string>(['x', 'y', 'z'], 'a');
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.DoesNotContain_ArrayOfT_Throws_Exception_When_Value_In_Array;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.DoesNotContain<string>(['x', 'y', 'z'], 'x');
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.StartsWith_SubString_Is_At_The_Start__Of_String( const subString, theString: string; caseSensitive: boolean );
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.StartsWith( subString, theString, caseSensitive );
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.StartsWith_SubString_Is_Not_At_Start( const subString, theString: string; caseSensitive: boolean );
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.StartsWith( subString, theString, caseSensitive );
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.EndsWith_SubString_Is_At_The_End__Of_String( const subString, theString: string; caseSensitive: boolean );
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.EndsWith( subString, theString, caseSensitive );
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.EndsWith_SubString_Is_Not_At_End( const subString, theString: string; caseSensitive: boolean );
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.EndsWith( subString, theString, caseSensitive );
+    end, ETestFailure);
+end;
+
 
 initialization
   TDUnitX.RegisterTestFixture(TTestsAssert);
