@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -28,16 +28,19 @@ unit DUnitX.InternalInterfaces;
 
 interface
 
+{$I DUnitX.inc}
+
 uses
+  {$IFDEF USE_NS}
+  System.TimeSpan,
+  {$ELSE}
   TimeSpan,
+  {$ENDIF}
   DUnitX.Generics,
   DUnitX.Extensibility,
   DUnitX.TestFrameWork;
 
-{$I DUnitX.inc}
-
 type
-
   //These interfaces mirror the Info classes in the framework but expose stuff we need for runtime.
 
   ISetTestResult = interface
@@ -60,13 +63,13 @@ type
   ITestExecute = interface
     ['{C59443A9-8C7D-46CE-83A1-E40309A1B384}']
     procedure Execute(const context : ITestExecuteContext);
+    procedure UpdateInstance(const fixtureInstance : TObject);
   end;
 
   ITestCaseExecute = interface(ITestExecute)
     ['{49781E22-C127-4BED-A9D5-84F9AAACE96C}']
     function GetCaseName : string;
   end;
-
 
   IFixtureResultBuilder = interface
     ['{2604E655-349D-4379-9796-1C708CAD7307}']
@@ -77,14 +80,6 @@ type
    // function AreEqual(const AFixtureResult : IFixtureResult) : boolean;
   end;
 
-
 implementation
-
-{ TTestList }
-
-uses
-  TypInfo,
-  SysUtils;
-
 
 end.

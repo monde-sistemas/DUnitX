@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -31,8 +31,13 @@ interface
 {$I DUnitX.inc}
 
 uses
+  {$IFDEF USE_NS}
+  System.Classes,
+  System.SysUtils,
+  {$ELSE}
+  Classes,
   SysUtils,
-  classes,
+  {$ENDIF}
 {$IFDEF USE_EUREKALOG7}
   ECallStack,
   EDebugInfo,

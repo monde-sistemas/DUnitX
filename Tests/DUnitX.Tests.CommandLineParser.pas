@@ -27,6 +27,8 @@ unit DUnitX.Tests.CommandLineParser;
 
 interface
 
+{$I DUnitX.inc}
+
 uses
   DUnitX.TestFramework,
   DUnitX.CommandLine.Options,
@@ -124,7 +126,9 @@ begin
     sList.Free;
   end;
   Assert.IsFalse(parseResult.HasErrors);
+{$IFNDEF DELPHI_XE_DOWN}
   Assert.AreEqual<TExampleEnum>(enTwo,test);
+{$ENDIF}
 end;
 
 procedure TCommandLineParserTests.Can_Parse_Multiple_Unnamed_Parameters;
@@ -136,13 +140,13 @@ var
   parseResult : ICommandLineParseResult;
   test : boolean;
 begin
-  def := TOptionsRegistry.RegisterUnNamedOption<string>('the file we want to process',
+  TOptionsRegistry.RegisterUnNamedOption<string>('the file we want to process',
                   procedure(value : string)
                   begin
                     file1 := value;
                   end);
 
-  def := TOptionsRegistry.RegisterUnNamedOption<string>('the second file we want to process',
+  TOptionsRegistry.RegisterUnNamedOption<string>('the second file we want to process',
                   procedure(value : string)
                   begin
                     file2 := value;
@@ -171,19 +175,18 @@ end;
 
 procedure TCommandLineParserTests.Can_Parse_Quoted_Value;
 var
-  def : IOptionDefintion;
   test : string;
   test2 : string;
   parseResult : ICommandLineParseResult;
   sList : TStringList;
 begin
-  def := TOptionsRegistry.RegisterOption<string>('test','t',
+  TOptionsRegistry.RegisterOption<string>('test','t',
                   procedure(value : string)
                   begin
                     test := value;
                   end);
 
-  def := TOptionsRegistry.RegisterOption<string>('test2','t2',
+  TOptionsRegistry.RegisterOption<string>('test2','t2',
                   procedure(value : string)
                   begin
                     test2 := value;
@@ -223,7 +226,9 @@ begin
     sList.Free;
   end;
   Assert.IsFalse(parseResult.HasErrors);
+{$IFNDEF DELPHI_XE_DOWN}
   Assert.AreEqual<TExampleSet>(test,[enOne,enThree]);
+{$ENDIF}
 end;
 
 procedure TCommandLineParserTests.Can_Parse_Unnamed_Parameter;
@@ -303,19 +308,18 @@ end;
 
 procedure TCommandLineParserTests.Will_Generate_Error_For_Extra_Unamed_Parameter;
 var
-  def : IOptionDefintion;
   file1 : string;
   sList : TStringList;
   parseResult : ICommandLineParseResult;
   test : string;
 begin
-  def := TOptionsRegistry.RegisterUnNamedOption<string>('the file we want to process',
+  TOptionsRegistry.RegisterUnNamedOption<string>('the file we want to process',
                   procedure(value : string)
                   begin
                     file1 := value;
                   end);
 
-  def := TOptionsRegistry.RegisterOption<string>('test','t',
+  TOptionsRegistry.RegisterOption<string>('test','t',
                   procedure(value : string)
                   begin
                     test := value;
@@ -328,7 +332,7 @@ begin
   sList.Add('c:\file2.txt');
   try
     parseResult := TOptionsRegistry.Parse(sList);
-    WriteLn(parseResult.ErrorText);
+    TDUnitX.CurrentRunner.Log(parseResult.ErrorText);
   finally
     sList.Free;
   end;
@@ -355,7 +359,7 @@ begin
   sList.Add('--test');
   try
     parseResult := TOptionsRegistry.Parse(sList);
-    WriteLn(parseResult.ErrorText);
+    TDUnitX.CurrentRunner.Log(parseResult.ErrorText);
   finally
     sList.Free;
   end;
@@ -371,7 +375,7 @@ begin
   sList.Add('--blah');
   try
     parseResult := TOptionsRegistry.Parse(sList);
-    WriteLn(parseResult.ErrorText);
+    TDUnitX.CurrentRunner.Log(parseResult.ErrorText);
   finally
     sList.Free;
   end;
@@ -391,7 +395,7 @@ begin
   sList.Add('--options:"x:\blah blah.txt"');
   try
     parseResult := TOptionsRegistry.Parse(sList);
-    WriteLn(parseResult.ErrorText);
+    TDUnitX.CurrentRunner.Log(parseResult.ErrorText);
   finally
     sList.Free;
   end;
@@ -472,7 +476,7 @@ begin
   sList.Add('--test:enbBlah');
   try
     parseResult := TOptionsRegistry.Parse(sList);
-    WriteLn(parseResult.ErrorText);
+    TDUnitX.CurrentRunner.Log(parseResult.ErrorText);
   finally
     sList.Free;
   end;
@@ -497,7 +501,7 @@ begin
   sList.Add('--test:[enOne,enFoo]');
   try
     parseResult := TOptionsRegistry.Parse(sList);
-    WriteLn(parseResult.ErrorText);
+    TDUnitX.CurrentRunner.Log(parseResult.ErrorText);
   finally
     sList.Free;
   end;

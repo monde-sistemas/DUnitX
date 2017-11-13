@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -28,11 +28,20 @@ unit DUnitX.Windows.Console;
 
 interface
 
+{$I DUnitX.inc}
+
+{$IFNDEF MSWINDOWS}
+ This unit should not ne included in your project, it works on windows only
+{$ENDIF}
+
 uses
-  classes,
+  {$IFDEF USE_NS}
+  System.Classes,
+  {$ELSE}
+  Classes,
+  {$ENDIF}
   DUnitX.ConsoleWriter.Base;
 
-{$I DUnitX.inc}
 
 type
   TDUnitXWindowsConsoleWriter = class(TDUnitXConsoleWriterBase)
@@ -57,13 +66,13 @@ type
 implementation
 
 uses
-  {$IFDEF MSWINDOWS}
-    {$if CompilerVersion < 23 }
-      Windows,
-    {$else}
-      WinAPI.Windows, // Delphi XE2 (CompilerVersion 23) added scopes in front of unit names
-    {$ifend}
+{$IFDEF MSWINDOWS}
+  {$IFDEF USE_NS}
+    WinAPI.Windows, // Delphi XE2 (CompilerVersion 23) added scopes in front of unit names
+  {$ELSE}
+    Windows,
   {$ENDIF}
+{$ENDIF}
   DUnitX.Utils,
   DUnitX.IoC;
 
@@ -111,7 +120,6 @@ end;
 
 function TDUnitXWindowsConsoleWriter.GetForegroundColourCode(const cc : TConsoleColour) : Word;
 begin
-  Result := 0;
   case cc of
     ccDefault       : Result := FDefaultForeground;
     ccBrightRed     : Result := FOREGROUND_RED or FOREGROUND_INTENSITY;
@@ -130,6 +138,8 @@ begin
     ccBlack         : Result := 0;
     ccBrightWhite   : Result := FOREGROUND_BLUE or FOREGROUND_GREEN or FOREGROUND_RED or FOREGROUND_INTENSITY;
     ccWhite         : Result := FOREGROUND_BLUE or FOREGROUND_GREEN or FOREGROUND_RED;
+  else
+    Result := 0;
   end;
 end;
 
@@ -172,7 +182,6 @@ end;
 
 function TDUnitXWindowsConsoleWriter.GetBackgroundColourCode(const cc : TConsoleColour) : Word;
 begin
-  Result := 0;
   case cc of
     ccDefault       : Result := FDefaultBackground;
     ccBrightRed     : Result := BACKGROUND_RED or BACKGROUND_INTENSITY;
@@ -191,6 +200,8 @@ begin
     ccBlack         : Result := 0;
     ccBrightWhite   : Result := BACKGROUND_BLUE or BACKGROUND_GREEN or BACKGROUND_RED or BACKGROUND_INTENSITY;
     ccWhite         : Result := BACKGROUND_BLUE or BACKGROUND_GREEN or BACKGROUND_RED;
+  else
+    Result := 0;
   end;
 end;
 

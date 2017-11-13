@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2017 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -31,8 +31,13 @@ interface
 {$I DUnitX.inc}
 
 uses
+  {$IFDEF USE_NS}
+  System.Rtti,
+  System.Generics.Collections,
+  {$ELSE}
   Rtti,
   Generics.Collections,
+  {$ENDIF}
   DUnitX.Extensibility;
 
 type
@@ -64,14 +69,24 @@ type
 
 implementation
 uses
+  {$IFDEF USE_NS}
+  System.TypInfo,
+  System.Classes,
+  System.Types,
+  System.StrUtils,
+  System.SysUtils,
+  {$ELSE}
   TypInfo,
   Classes,
   Types,
   StrUtils,
   SysUtils,
+  {$ENDIF}
   DUnitX.Attributes,
   DUnitX.Utils,
-  DUnitX.TestFramework;
+  DUnitX.TestFramework,
+  DUnitX.ResStrs,
+  DUnitX.Types;
 
 { TDUnitXFixtureProvider }
 
@@ -237,6 +252,7 @@ var
   testAttrib : TestAttribute;
   categoryAttrib : CategoryAttribute;
   ignoredAttrib   : IgnoreAttribute;
+  willRaiseAttrib : WillRaiseAttribute;
   testCases       : TArray<CustomTestCaseAttribute>;
   testCaseAttrib  : CustomTestCaseAttribute;
   testCaseSources : TArray<CustomTestCaseSourceAttribute>;
@@ -245,10 +261,14 @@ var
   testEnabled     : boolean;
   isTestMethod    : boolean;
   repeatAttrib    : RepeatTestAttribute;
+  maxTimeAttrib   : MaxTimeAttribute;
 
   category        : string;
   ignoredTest     : boolean;
   ignoredReason   : string;
+  maxTime         : cardinal;
+  willRaise       : ExceptClass;
+  willRaiseInherit: TExceptionInheritance;
 
   repeatCount: Cardinal;
   i: Integer;
@@ -292,8 +312,13 @@ begin
     ignoredAttrib := nil;
     testAttrib := nil;
     categoryAttrib := nil;
+    willRaiseAttrib := nil;
     isTestMethod := false;
     repeatCount := 1;
+    maxTimeAttrib := nil;
+    maxTime := 0;
+    willRaise := nil;
+    willRaiseInherit := exExact;
     currentFixture := fixture;
 
     meth.Code := method.CodeAddress;
@@ -303,14 +328,12 @@ begin
     if method.TryGetAttributeOfType<CategoryAttribute>(categoryAttrib) then
       category := categoryAttrib.Category;
 
-
-
     if method.TryGetAttributeOfType<RepeatTestAttribute>(repeatAttrib) then
     begin
       if (repeatAttrib.Count = 0) then
       begin
         ignoredTest := True;
-        ignoredReason := 'Repeat Set to 0. Test Ignored.';
+        ignoredReason := STestIgnoredRepeatSet;
       end
       else
       if (repeatAttrib.Count > 1) then
@@ -352,7 +375,6 @@ begin
        continue;
     end;
 
-
     if (not Assigned(setupMethod)) and method.TryGetAttributeOfType<SetupAttribute>(setupAttrib) then
     begin
       setupMethod := TTestMethod(meth);
@@ -369,16 +391,26 @@ begin
 
     if method.TryGetAttributeOfType<IgnoreAttribute>(ignoredAttrib) then
     begin
-       ignoredTest   := true;
-       ignoredReason := ignoredAttrib.Reason;
+      ignoredTest   := true;
+      ignoredReason := ignoredAttrib.Reason;
+    end;
+
+    if method.TryGetAttributeOfType<WillRaiseAttribute>(willRaiseAttrib) then
+    begin
+      willRaise := willRaiseAttrib.ExpectedException;
+      willRaiseInherit := willRaiseAttrib.ExceptionInheritance;
     end;
 
     if method.TryGetAttributeOfType<TestAttribute>(testAttrib) then
     begin
-       testEnabled := testAttrib.Enabled;
-       isTestMethod := true;
+      testEnabled := testAttrib.Enabled;
+      isTestMethod := true;
     end;
 
+    {$IFDEF MSWINDOWS}
+    if method.TryGetAttributeOfType<MaxTimeAttribute>(maxTimeAttrib) then
+      maxTime := maxTimeAttrib.MaxTime;
+    {$ENDIF}
     if method.IsDestructor or method.IsConstructor then
       continue;
 
@@ -399,17 +431,23 @@ begin
           begin
             for i := 1 to repeatCount do
             begin
-              currentFixture.AddTestCase(method.Name, testCaseAttrib.CaseInfo.Name, FormatTestName(method.Name, i, repeatCount), category, method, testEnabled,testCaseAttrib.CaseInfo.Values);
+              currentFixture.AddTestCase(method.Name, testCaseAttrib.CaseInfo.Name, FormatTestName(method.Name, i, repeatCount), category, method, testEnabled, testCaseAttrib.CaseInfo.Values);
             end;
           end;
           // Add test case from test \case sources
-          for testCaseSourceAttrb in testCaseSources do
+          if Length(testCaseSources) > 0 then
           begin
-            for testCaseData in testCaseSourceAttrb.CaseInfoArray do
+            for testCaseSourceAttrb in testCaseSources do
             begin
-              for i := 1 to repeatCount do
+              if Length(testCaseSourceAttrb.CaseInfoArray) > 0 then
               begin
-                currentFixture.AddTestCase(method.Name, TestCaseData.Name, FormatTestName(method.Name, i, repeatCount), category, method, testEnabled,TestCaseData.Values);
+                for testCaseData in testCaseSourceAttrb.CaseInfoArray do
+                begin
+                  for i := 1 to repeatCount do
+                  begin
+                    currentFixture.AddTestCase(method.Name, TestCaseData.Name, FormatTestName(method.Name, i, repeatCount), category, method, testEnabled,TestCaseData.Values);
+                  end;
+                end;
               end;
             end;
           end;
@@ -417,7 +455,7 @@ begin
         else
         begin
           //if a testcase is ignored, just add it as a regular test.
-          currentFixture.AddTest(method.Name, TTestMethod(meth),method.Name,category,true,true,ignoredReason);
+          currentFixture.AddTest(method.Name, TTestMethod(meth), method.Name, category, true, true, ignoredReason, maxTime);
         end;
         continue;
       end;
@@ -427,7 +465,7 @@ begin
     begin
       for i := 1 to repeatCount do
       begin
-        currentFixture.AddTest(method.Name, TTestMethod(meth),FormatTestName(method.Name, i, repeatCount),category,true,ignoredTest,ignoredReason);
+        currentFixture.AddTest(method.Name, TTestMethod(meth), FormatTestName(method.Name, i, repeatCount), category, true, ignoredTest, ignoredReason, maxTime, willRaise, willRaiseInherit);
       end;
       continue;
     end;
@@ -438,7 +476,7 @@ begin
       // Add Published Method that has no Attributes
       for i := 1 to repeatCount do
       begin
-        currentFixture.AddTest(method.Name, TTestMethod(meth),FormatTestName(method.Name, i, repeatCount),category,true,ignoredTest,ignoredReason);
+        currentFixture.AddTest(method.Name, TTestMethod(meth), FormatTestName(method.Name, i, repeatCount), category, true, ignoredTest, ignoredReason, maxTime);
       end;
     end;
   end;

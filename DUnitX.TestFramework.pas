@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -32,22 +32,42 @@ unit DUnitX.TestFramework;
 
 interface
 
+{$I DUnitX.inc}
+
 uses
+  {$IFDEF USE_NS}
+  System.Classes,
+  System.SysUtils,
+  System.SyncObjs,
+  System.TypInfo,
+  System.Rtti,
+  System.TimeSpan,
+  System.Generics.Collections,
+  {$ELSE}
   Classes,
   SysUtils,
+  SyncObjs,
   TypInfo,
   Rtti,
   TimeSpan,
+  Generics.Collections,
+  {$ENDIF}
   DUnitX.Assert,
+  DUnitX.Assert.Ex,
   DUnitX.Attributes,
   DUnitX.Generics,
   DUnitX.Extensibility,
   DUnitX.Filters,
-  Generics.Collections;
+  DUnitX.ComparableFormat,
+  DUnitX.Exceptions,
+  DUnitX.Types;
 
-//TODO: Automatic support for https://code.google.com/p/delphi-code-coverage/ would be cool
+{$HPPEMIT '#if defined(USEPACKAGES)'}
+{$HPPEMIT '# pragma comment(lib, "DUnitXRuntime.bpi")'}
+{$HPPEMIT '#else'}
+{$HPPEMIT '# pragma comment(lib, "DUnitXRuntime")'}
+{$HPPEMIT '#endif'}
 
-{$I DUnitX.inc}
 
 type
   TestFixtureAttribute = DUnitX.Attributes.TestFixtureAttribute;
@@ -61,13 +81,16 @@ type
   CategoryAttribute = DUnitX.Attributes.CategoryAttribute;
   IgnoreAttribute = DUnitX.Attributes.IgnoreAttribute;
   RepeatTestAttribute = DUnitX.Attributes.RepeatTestAttribute;
-
+  MaxTimeAttribute =  DUnitX.Attributes.MaxTimeAttribute;
+  WillRaiseAttribute = DUnitX.Attributes.WillRaiseAttribute;
   TestCaseInfo = DUnitX.Attributes.TestCaseInfo;
   TestCaseInfoArray = DUnitX.Attributes.TestCaseInfoArray;
 
   CustomTestCaseAttribute = DUnitX.Attributes.CustomTestCaseAttribute;
   CustomTestCaseSourceAttribute = DUnitX.Attributes.CustomTestCaseSourceAttribute;
   TestCaseAttribute = DUnitX.Attributes.TestCaseAttribute;
+
+  TExceptionInheritance = DUnitX.Types.TExceptionInheritance;
 
   TTestMethod = DUnitX.Extensibility.TTestMethod;
 
@@ -77,8 +100,22 @@ type
   TLogLevel = (Information, Warning, Error);
   {$SCOPEDENUMS OFF}
 
+  TLogMessage = record
+    Level: TLogLevel;
+    Msg: string;
+  end;
+
+  TLogMessageArray = array of TLogMessage;
+
+  {$IFDEF DELPHI_2010}
+  TThreadID = Cardinal;
+  {$ENDIF}
+
 const
   TLogLevelDesc : array[TLogLevel] of string = ('Info', 'Warn', 'Err');
+
+  exExact = DUnitX.Types.exExact;
+  exDescendant = DUnitX.Types.exDescendant;
 
 type
 {$IFDEF DELPHI_XE2_UP}
@@ -98,8 +135,8 @@ type
   end;
 {$ENDIF}
 
-  Assert = class(DUnitX.Assert.Assert); // inherit because redeclaration raises ICE
-
+  // inherit because redeclaration raises ICE
+  Assert = class(DUnitX.Assert.Ex.Assert);
 
   {$M+}
   ITestFixtureInfo = interface;
@@ -201,7 +238,7 @@ type
 
 
   {$SCOPEDENUMS ON}
-  TTestResultType = (Pass,Failure,Error,Ignored,MemoryLeak);
+  TTestResultType = (Pass,Failure,Error,Ignored,MemoryLeak,Warning);
   {$M+}
   ITestResult = interface(IResult)
   ['{EFD44ABA-4F3E-435C-B8FC-1F8EB4B35A3B}']
@@ -209,6 +246,7 @@ type
     function GetResult : boolean;
     function GetResultType : TTestResultType;
     function GetMessage : string;
+    function GetLogMessages: TLogMessageArray;
     function GetStackTrace : string;
 
     //Test
@@ -218,6 +256,7 @@ type
     property Result : boolean read GetResult;
     property ResultType : TTestResultType read GetResultType;
     property Message : string read GetMessage;
+    property LogMessages: TLogMessageArray read GetLogMessages;
     property StackTrace : string read GetStackTrace;
 
   end;
@@ -230,12 +269,20 @@ type
     function GetExceptionLocationInfo : string;
     function GetExceptionAddressInfo : string;
     function GetExceptionAddress : Pointer;
+    function GetIsComparable: boolean;
+    function GetExpected: string;
+    function GetActual: string;
+    function GetFormat: TDUnitXComparableFormatClass;
 
     property ExceptionClass : ExceptClass read GetExceptionClass;
     property ExceptionMessage : string read GetExceptionMessage;
     property ExceptionLocationInfo : string read GetExceptionLocationInfo;
     property ExceptionAddressInfo : string read GetExceptionAddressInfo;
     property ExceptionAddress : Pointer read GetExceptionAddress;
+    property IsComparable: boolean read GetIsComparable;
+    property Expected: string read GetExpected;
+    property Actual: string read GetActual;
+    property Format: TDUnitXComparableFormatClass read GetFormat;
   end;
 
   IFixtureResult = interface(IResult)
@@ -320,102 +367,102 @@ type
     ///	  Called at the start of testing. The default console logger prints the
     ///	  DUnitX banner.
     ///	</summary>
-    procedure OnTestingStarts(const threadId, testCount, testActiveCount : Cardinal);
+    procedure OnTestingStarts(const threadId: TThreadID; testCount, testActiveCount: Cardinal);
 
     ///	<summary>
     ///	  //Called before a Fixture is run.
     ///	</summary>
-    procedure OnStartTestFixture(const threadId : Cardinal; const fixture : ITestFixtureInfo);
+    procedure OnStartTestFixture(const threadId: TThreadID; const fixture: ITestFixtureInfo);
 
     ///	<summary>
     ///	  //Called before a fixture Setup method is run
     ///	</summary>
-    procedure OnSetupFixture(const threadId : Cardinal; const fixture : ITestFixtureInfo);
+    procedure OnSetupFixture(const threadId: TThreadID; const fixture: ITestFixtureInfo);
 
     ///	<summary>
     ///	  Called after a fixture setup method is run.
     ///	</summary>
-    procedure OnEndSetupFixture(const threadId : Cardinal; const fixture : ITestFixtureInfo);
+    procedure OnEndSetupFixture(const threadId: TThreadID; const fixture: ITestFixtureInfo);
 
     ///	<summary>
     ///	  Called before a Test method is run.
     ///	</summary>
-    procedure OnBeginTest(const threadId : Cardinal;const  Test: ITestInfo);
+    procedure OnBeginTest(const threadId: TThreadID; const Test: ITestInfo);
 
     ///	<summary>
     ///	  Called before a test setup method is run.
     ///	</summary>
-    procedure OnSetupTest(const threadId : Cardinal;const  Test: ITestInfo);
+    procedure OnSetupTest(const threadId: TThreadID; const Test: ITestInfo);
 
     ///	<summary>
     ///	  Called after a test setup method is run.
     ///	</summary>
-    procedure OnEndSetupTest(const threadId : Cardinal;const  Test: ITestInfo);
+    procedure OnEndSetupTest(const threadId: TThreadID; const Test: ITestInfo);
 
     ///	<summary>
     ///	  Called before a Test method is run.
     ///	</summary>
-    procedure OnExecuteTest(const threadId : Cardinal;const  Test: ITestInfo);
+    procedure OnExecuteTest(const threadId: TThreadID; const Test: ITestInfo);
 
     ///	<summary>
     ///	  Called when a test succeeds
     ///	</summary>
-    procedure OnTestSuccess(const threadId : Cardinal;const  Test: ITestResult);
+    procedure OnTestSuccess(const threadId: TThreadID; const Test: ITestResult);
 
     ///	<summary>
     ///	  Called when a test errors.
     ///	</summary>
-    procedure OnTestError(const threadId : Cardinal;const Error: ITestError);
+    procedure OnTestError(const threadId: TThreadID; const Error: ITestError);
 
     ///	<summary>
     ///	  Called when a test fails.
     ///	</summary>
-    procedure OnTestFailure(const threadId : Cardinal;const  Failure: ITestError);
+    procedure OnTestFailure(const threadId: TThreadID; const Failure: ITestError);
 
     /// <summary>
     ///   called when a test is ignored.
     /// </summary>
-    procedure OnTestIgnored(const threadId : Cardinal; const AIgnored: ITestResult);
+    procedure OnTestIgnored(const threadId: TThreadID; const AIgnored: ITestResult);
 
     /// <summary>
     ///   called when a test memory leaks.
     /// </summary>
-    procedure OnTestMemoryLeak(const threadId : Cardinal; const Test: ITestResult);
+    procedure OnTestMemoryLeak(const threadId: TThreadID; const Test: ITestResult);
 
     /// <summary>
     ///   allows tests to write to the log.
     /// </summary>
-    procedure OnLog(const logType : TLogLevel; const msg : string);
+    procedure OnLog(const logType: TLogLevel; const msg: string);
 
     /// <summary>
     ///   called before a Test Teardown method is run.
     /// </summary>
-    procedure OnTeardownTest(const threadId : Cardinal;const  Test: ITestInfo);
+    procedure OnTeardownTest(const threadId: TThreadID; const Test: ITestInfo);
 
     /// <summary>
     ///   called after a test teardown method is run.
     /// </summary>
-    procedure OnEndTeardownTest(const threadId : Cardinal; const Test: ITestInfo);
+    procedure OnEndTeardownTest(const threadId: TThreadID; const Test: ITestInfo);
 
     /// <summary>
     ///   called after a test method and teardown is run.
     /// </summary>
-    procedure OnEndTest(const threadId : Cardinal;const  Test: ITestResult);
+    procedure OnEndTest(const threadId: TThreadID; const Test: ITestResult);
 
     /// <summary>
     ///   called before a Fixture Teardown method is called.
     /// </summary>
-    procedure OnTearDownFixture(const threadId : Cardinal; const fixture : ITestFixtureInfo);
+    procedure OnTearDownFixture(const threadId: TThreadID; const fixture: ITestFixtureInfo);
 
     /// <summary>
     ///   called after a Fixture Teardown method is called.
     /// </summary>
-    procedure OnEndTearDownFixture(const threadId : Cardinal; const fixture : ITestFixtureInfo);
+    procedure OnEndTearDownFixture(const threadId: TThreadID; const fixture: ITestFixtureInfo);
 
     /// <summary>
     ///   called after a Fixture has run.
     /// </summary>
-    procedure OnEndTestFixture(const threadId : Cardinal; const results : IFixtureResult);
+    procedure OnEndTestFixture(const threadId: TThreadID; const results: IFixtureResult);
 
     /// <summary>
     ///   called after all fixtures have run.
@@ -514,7 +561,8 @@ type
     class var
       FOptions : TDUnitXOptions;
       FFilter : ITestFilter;
-      FAssertCounters : TDictionary<Cardinal,Cardinal>;
+      FAssertCounters : TDictionary<TThreadID,Cardinal>;
+      FLock : TCriticalSection;
   protected
     class constructor Create;
     class destructor Destroy;
@@ -528,7 +576,7 @@ type
     class procedure RegisterTestFixture(const AClass : TClass; const AName : string = '' );
     class procedure RegisterPlugin(const plugin : IPlugin);
     class function CurrentRunner : ITestRunner;
-    class function GetAssertCount(const AThreadId : Cardinal) : Cardinal;
+    class function GetAssertCount(const AThreadId: TThreadID) : Cardinal;
     ///  Parses the command line options and applies them the the Options object.
     ///  Will throw exception if there are errors.
     class procedure CheckCommandLine;
@@ -560,18 +608,10 @@ type
     function TestMemoryAllocated: Int64;
   end;
 
-
-  ETestFrameworkException = class(Exception);
-
-  ENotImplemented = class(ETestFrameworkException);
-
-  //base exception for any internal exceptions which cause the test to stop
-  EAbort = class(ETestFrameworkException);
-
-  ETestFailure = class(EAbort);
-  ETestPass = class(EAbort);
-  ENoTestsRegistered = class(ETestFrameworkException);
-  ECommandLineError = class(ETestFrameworkException);
+  IMemoryLeakMonitor2 = interface(IMemoryLeakMonitor)
+  ['{33559983-D522-4ED5-9B5E-AC9A055FA01A}']
+    function GetReport: string;
+  end;
 
 const
   EXIT_OK     = 0;
@@ -581,6 +621,21 @@ const
 implementation
 
 uses
+  {$IFDEF USE_NS}
+  System.Variants,
+  System.Math,
+  System.StrUtils,
+  System.Types,
+  System.RegularExpressions,
+  System.Generics.Defaults,
+  {$ELSE}
+  Variants,
+  Math,
+  StrUtils,
+  Types,
+  Generics.Defaults,
+  {$ENDIF}
+  DUnitX.ResStrs,
   DUnitX.ConsoleWriter.Base,
   DUnitX.Banner,
   DUnitX.OptionsDefinition,
@@ -591,15 +646,7 @@ uses
   DUnitX.MemoryLeakMonitor.Default,
   DUnitX.FixtureProviderPlugin,
   DUnitX.FilterBuilder,
-  DUnitX.WeakReference,
-  Variants,
-  Math,
-  StrUtils,
-  Types,
-  {$IFDEF SUPPORTS_REGEX}
-  RegularExpressions,
-  {$ENDIF}
-  Generics.Defaults;
+  DUnitX.WeakReference;
 
 { TDUnitXOptions }
 
@@ -647,8 +694,8 @@ procedure ShowUsage(consoleWriter : IDUnitXConsoleWriter);
 begin
   if consoleWriter <> nil then
     consoleWriter.SetColour(ccBrightYellow,ccDefault);
-  Writeline(consoleWriter, Format('Usage : %s options', [ExtractFileName(ParamStr(0))])+#13#10);
-  Writeline(consoleWriter, ' Options :');
+  Writeline(consoleWriter, Format(SUsage, [ExtractFileName(ParamStr(0))])+#13#10);
+  Writeline(consoleWriter, SOptions);
   if consoleWriter <> nil then
     consoleWriter.SetColour(ccBrightWhite,ccDefault);
 
@@ -716,7 +763,8 @@ end;
 class constructor TDUnitX.Create;
 begin
   FOptions := TDUnitXOptions.Create;
-  FAssertCounters := TDictionary<Cardinal,Cardinal>.Create;
+  FAssertCounters := TDictionary<TThreadID,Cardinal>.Create(8);
+  FLock := TCriticalSection.Create;
   RegisteredFixtures := TDictionary<TClass,string>.Create;
   RegisteredPlugins  := TList<IPlugin>.Create;
   //Make sure we have at least a dummy memory leak monitor registered.
@@ -725,11 +773,11 @@ begin
   FFilter := nil;
   Assert.OnAssert := procedure
                     var
-                      threadId : Cardinal;
+                      threadId : TThreadID;
                       value : cardinal;
                     begin
                       threadId := TThread.CurrentThread.ThreadID;
-                      MonitorEnter(FAssertCounters);
+                      FLock.Enter;
                       try
                         if FAssertCounters.TryGetValue(threadId,value) then
                         begin
@@ -739,7 +787,7 @@ begin
                         else
                           FAssertCounters.Add(threadId,1)
                       finally
-                        MonitorExit(FAssertCounters);
+                        FLock.Leave;
                       end;
                     end;
 end;
@@ -749,7 +797,7 @@ var
   ref : IWeakReference<ITestRunner>;
 begin
   if not TDUnitXTestRunner.FActiveRunners.TryGetValue(TThread.CurrentThread.ThreadId,ref) then
-    raise Exception.Create('No Runner found for current thread');
+    raise Exception.Create(SNoRunner);
   result := ref.Data;
 
 end;
@@ -760,19 +808,25 @@ begin
   RegisteredPlugins.Free;
   FOptions.Free;
   FAssertCounters.Free;
+  FLock.Free;
 end;
 
-class function TDUnitX.GetAssertCount(const AThreadId: Cardinal): Cardinal;
+class function TDUnitX.GetAssertCount(const AThreadId: TThreadID): Cardinal;
 begin
   result := 0;
-  FAssertCounters.TryGetValue(AThreadId,result);
+  FLock.Enter;
+  try
+    FAssertCounters.TryGetValue(AThreadId,result);
+  finally
+    FLock.Leave;
+  end;
 end;
 
 
 class procedure TDUnitX.RegisterPlugin(const plugin: IPlugin);
 begin
   if plugin = nil then
-    raise Exception.Create('Nil plug registered!');
+    raise Exception.Create(SNilPlugin);
   RegisteredPlugins.Add(plugin);
 end;
 
@@ -806,7 +860,6 @@ begin
   if not RegisteredFixtures.ContainsKey(AClass) then
       RegisteredFixtures.Add(AClass,sName );
 end;
-
 
 {$IFDEF DELPHI_XE2_UP}
 
@@ -856,10 +909,14 @@ begin
   Assert.TestPass := ETestPass;
 end;
 
+{$IFNDEF DELPHI_XE3}
+
 initialization
   TDUnitX.RegisterPlugin(TDUnitXFixtureProviderPlugin.Create);
   InitAssert;
 
 finalization
+
+{$ENDIF}
 
 end.

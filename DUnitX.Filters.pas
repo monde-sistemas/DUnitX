@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -22,10 +22,6 @@
 {  See the License for the specific language governing permissions and      }
 {  limitations under the License.                                           }
 {                                                                           }
-{ This unit is largely a port of the NUnit filters classes                  }
-{ Copyright © 2012-2014 Charlie Poole                                       }
-{ License  : http://nunit.org/index.php?p=vsTestAdapterLicense&r=2.6.3      }
-{                                                                           }
 {***************************************************************************}
 
 unit DUnitX.Filters;
@@ -34,12 +30,17 @@ unit DUnitX.Filters;
 
 interface
 
+{$I DUnitX.inc}
+
 uses
+  {$IFDEF USE_NS}
+  System.Classes,
+  System.Generics.Collections,
+  {$ELSE}
   Classes,
   Generics.Collections,
+  {$ENDIF}
   DUnitX.Extensibility;
-
-{$I DUnitX.inc}
 
 type
 	/// <summary>
@@ -132,11 +133,13 @@ type
   protected
     procedure Add(const name : string);overload;
     procedure Add(const names : TArray<string>);overload;
+    procedure Add(const names : TStrings);overload;
     function Match(const test: ITest): Boolean;override;
   public
     constructor Create;overload;
     constructor Create(const AName : string);overload;
     constructor Create(const ANames : TArray<string>);overload;
+    constructor Create(const ANames : TStrings);overload;
     destructor Destroy;override;
   end;
 
@@ -145,7 +148,6 @@ type
     function Match(const test: ITest): Boolean;override;
     function Categories : TList<string>;
   end;
-
 
   TAndFilter = class(TTestFilter,ITestFilter,IAndFilter)
   private
@@ -194,9 +196,15 @@ type
 implementation
 
 uses
+  {$IFDEF USE_NS}
+  System.Generics.Defaults,
+  System.StrUtils,
+  System.SysUtils;
+  {$ELSE}
   Generics.Defaults,
   StrUtils,
   SysUtils;
+  {$ENDIF}
 
 { TTestFilter }
 
@@ -221,13 +229,12 @@ var
   name: string;
 begin
   for name in names do
-  begin
-    FNames.Add(name)
-  end;
+    FNames.Add(name);
 end;
 
 constructor TNameFilter.Create;
 begin
+  inherited;
   FNames := TList<string>.Create(TComparer<string>.Construct(
   function(const Left, Right : string) : integer
   begin
@@ -242,6 +249,20 @@ begin
     if not FNames.Contains(name) then
       FNames.Add(name)
   end;
+end;
+
+procedure TNameFilter.Add(const names: TStrings);
+var
+  name: string;
+begin
+  for name in names do
+    FNames.Add(name);
+end;
+
+constructor TNameFilter.Create(const ANames: TStrings);
+begin
+  Create;
+  Add(ANames);
 end;
 
 constructor TNameFilter.Create(const ANames: TArray<string>);
@@ -292,6 +313,7 @@ end;
 
 constructor TAndFilter.Create(const filters: TArray<ITestFilter>);
 begin
+  inherited Create;
   FFilters := TList<ITestFilter>.Create;
   Add(filters);
 end;
@@ -309,6 +331,7 @@ end;
 
 constructor TAndFilter.Create(const filter: ITestFilter);
 begin
+  inherited Create;
   FFilters := TList<ITestFilter>.Create;
   Add(filter);
 end;
@@ -340,6 +363,7 @@ end;
 
 constructor TOrFilter.Create(const filters: TArray<ITestFilter>);
 begin
+  inherited Create;
   FFilters := TList<ITestFilter>.Create;
   Add(filters);
 end;
@@ -357,6 +381,7 @@ end;
 
 constructor TOrFilter.Create(const filter: ITestFilter);
 begin
+  inherited Create;
   FFilters := TList<ITestFilter>.Create;
   Add(filter);
 end;
@@ -383,6 +408,7 @@ end;
 
 constructor TNotFilter.Create(const baseFilter: ITestFilter; const topLevel: boolean);
 begin
+  inherited Create;
   FBaseFilter := baseFilter;
   FTopLevel := topLevel;
 end;

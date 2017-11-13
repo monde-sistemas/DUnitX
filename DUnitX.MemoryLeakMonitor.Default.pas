@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -31,7 +31,11 @@ interface
 {$I DUnitX.inc}
 
 uses
-  classes,
+  {$IFDEF USE_NS}
+  System.Classes,
+  {$ELSE}
+  Classes,
+  {$ENDIF}
   DUnitX.TestFramework;
 
 type

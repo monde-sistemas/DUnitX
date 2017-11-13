@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -32,10 +32,15 @@ interface
 
 
 uses
-  classes,
+  {$IFDEF USE_NS}
+  System.Classes,
+  {$ELSE}
+  Classes,
+  {$ENDIF}
   DUnitX.TestFramework;
 
 implementation
+
 uses
   DUnitX.MemoryLeakMonitor.Default,
   DUnitX.IoC;
@@ -79,7 +84,7 @@ begin
 
   for sb in st.SmallBlockTypeStates do
   begin
-    Result := Result + sb.UseableBlockSize * sb.AllocatedBlockCount;
+    Result := Result + Int64(sb.UseableBlockSize * sb.AllocatedBlockCount);
   end;
 end;
 

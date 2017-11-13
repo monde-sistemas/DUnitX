@@ -26,7 +26,6 @@ uses
   DUnitX.StackTrace.JCL in '..\DUnitX.StackTrace.JCL.pas',
   DUnitX.StackTrace.MadExcept3 in '..\DUnitX.StackTrace.MadExcept3.pas',
   DUnitX.StackTrace.MadExcept4 in '..\DUnitX.StackTrace.MadExcept4.pas',
-  DUnitX.Loggers.GUI in '..\DUnitX.Loggers.GUI.pas' {Form1},
   DUnitX.StackTrace.EurekaLog7 in '..\DUnitX.StackTrace.EurekaLog7.pas',
   DUnitX.Loggers.Null in '..\DUnitX.Loggers.Null.pas',
   DUnitX.FixtureResult in '..\DUnitX.FixtureResult.pas',
@@ -62,7 +61,11 @@ uses
   DUnitX.Tests.Inheritance in 'DUnitX.Tests.Inheritance.pas',
   DUnitX.Tests.ConsoleWriter.Base in 'DUnitX.Tests.ConsoleWriter.Base.pas',
   DUnitX.Assert in '..\DUnitX.Assert.pas',
-  DUnitX.Types in '..\DUnitX.Types.pas';
+  DUnitX.Types in '..\DUnitX.Types.pas',
+  DUnitX.Timeout in '..\DUnitX.Timeout.pas',
+  DUnitX.ResStrs in '..\DUnitX.ResStrs.pas',
+  DUnitX.Constants in '..\DUnitX.Constants.pas',
+  DUnitX.Attributes in '..\DUnitX.Attributes.pas';
 
 var
   runner : ITestRunner;

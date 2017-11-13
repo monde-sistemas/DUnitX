@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2012 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -47,20 +47,25 @@
 /// </remarks>
 /// <seealso cref="DUnitX.Windows.Console" />
 /// <seealso cref="DUnitX.MacOS.Console" />
+/// <seealso_ cref="DUnitX.Linux.Console" />
 /// <seealso cref="DUnitX.Loggers.Console" />
 
 unit DUnitX.AutoDetect.Console;
 
 interface
 uses
- {$IFDEF MSWINDOWS}
+ {$IF Defined(MSWINDOWS)}
      DUnitX.Windows.Console;
- {$ELSE}
+ {$ELSEIF Defined(MACOS) or Defined(OSX32)}
      // Simplification as MacOS console supports Ansi, and other terminals
      // on platforms other than windows typically support some form of
      // ANSI colors.
      DUnitX.MacOS.Console;
- {$ENDIF}
+ {$ELSEIF Defined(LINUX) or Defined(ANDROID)}
+     DUnitX.Linux.Console;
+ {$ELSE}
+     {$MESSAGE Error 'Unknown Platform for Console Writer'}
+ {$IFEND}
 
 implementation
 

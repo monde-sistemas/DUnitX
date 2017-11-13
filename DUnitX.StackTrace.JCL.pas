@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2013 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -31,8 +31,13 @@ interface
 {$I DUnitX.inc}
 
 uses
+  {$IFDEF USE_NS}
+  System.SysUtils,
+  System.Classes,
+  {$ELSE}
   SysUtils,
-  classes,
+  Classes,
+  {$ENDIF}
 {$IFDEF USE_JCL}
   JclDebug,
 {$ENDIF}

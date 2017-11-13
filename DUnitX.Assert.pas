@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2012 Vincent Parrett                              }
+{           Copyright (C) 2017 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -26,13 +26,23 @@
 
 unit DUnitX.Assert;
 
+// This unit should ONLY contain Assert commands and mechanisms that are
+// not directly tied to DUnitX to keep the file neutral and usable in other
+// test frameworks such as DUnit.  DUnitX specific implementations should be
+// implemented in DUnitX.Assert.Ex.pas
+
 interface
 
+{$I DUnitX.inc}
+
 uses
+  {$IFDEF USE_NS}
+  System.Classes,
+  System.SysUtils;
+  {$ELSE}
   Classes,
   SysUtils;
-
-{$I DUnitX.inc}
+  {$ENDIF}
 
 type
   TTestLocalMethod = TProc;
@@ -41,11 +51,14 @@ type
 
   Assert = class
   private
+    class var fIgnoreCaseDefault: boolean;
     class var fOnAssert: TProc;
     class var fTestFailure: ExceptClass;
     class var fTestPass: ExceptClass;
     class procedure CheckExceptionClass(E: Exception; const exceptionClass: ExceptClass);
     class procedure CheckExceptionClassDescendant(E: Exception; const exceptionClass: ExceptClass);
+  protected
+    class function StreamsEqual(const stream1, stream2: TStream): boolean;
     class function AddLineBreak(const msg: string): string;
     class procedure DoAssert; inline;
   public
@@ -62,16 +75,25 @@ type
     class procedure AreEqual(const expected, actual : Extended; const tolerance : Extended; const message : string = '');overload;
     class procedure AreEqual(const expected, actual : Extended; const message : string = '');overload;
     class procedure AreEqual(const expected, actual : TClass; const message : string = '');overload;
+    class procedure AreEqual(const expected, actual : TStream; const message : string = '');overload;
 {$IFNDEF DELPHI_XE_DOWN}
     //Delphi 2010 and XE compiler bug breaks this
     class procedure AreEqual<T>(const expected, actual : T; const message : string = '');overload;
 {$ENDIF}
+    class procedure AreEqual(const expected, actual : word; const message : string = '');overload;
     class procedure AreEqual(const expected, actual : Integer; const message : string = '');overload;
+    class procedure AreEqual(const expected, actual : cardinal; const message : string = '');overload;
     class procedure AreEqual(const expected, actual : boolean; const message : string = '');overload;
+
+    class procedure AreEqual(const expected, actual: TGUID; const message : string = '');overload;
+
+    class procedure AreEqual(const expected, actual: TStrings; const ignoreLines: array of integer; const message : string = '');overload;
+    class procedure AreEqual(const expected, actual: TStrings; const message : string = '');overload;
 
     class procedure AreEqualMemory(const expected : Pointer; const actual : Pointer; const size : Cardinal; const message : string = '');
 
-    class procedure AreNotEqual(const expected : string; const actual : string; const ignoreCase : boolean = true; const message : string = '');overload;
+    class procedure AreNotEqual(const expected : string; const actual : string; const ignoreCase : boolean; const message : string = '');overload;
+    class procedure AreNotEqual(const expected : string; const actual : string; const message : string = '');overload;
 
     class procedure AreNotEqual(const expected, actual : Extended; const tolerance : Extended; const message : string = '');overload;
     class procedure AreNotEqual(const expected, actual : Extended; const message : string = '');overload;
@@ -80,11 +102,14 @@ type
     class procedure AreNotEqual(const expected, actual : Double; const message : string = '');overload;
 
     class procedure AreNotEqual(const expected, actual : TClass; const message : string = '');overload;
+
+    class procedure AreNotEqual(const expected, actual : TStream; const message : string = '');overload;
 {$IFNDEF DELPHI_XE_DOWN}
     //Delphi 2010 and XE compiler bug breaks this
     class procedure AreNotEqual<T>(const expected, actual : T; const message : string = '');overload;
 {$ENDIF}
     class procedure AreNotEqual(const expected, actual : Integer; const message : string = '');overload;
+    class procedure AreNotEqual(const expected, actual : TGUID; const message : string = '');overload;
     class procedure AreNotEqualMemory(const expected : Pointer; const actual : Pointer; const size : Cardinal; const message : string = '');
 
     class procedure AreSame(const expected, actual : TObject; const message : string = '');overload;
@@ -199,14 +224,34 @@ type
     /// </summary>
     class procedure WillNotRaiseAny(const AMethod : TTestMethod; const msg : string = ''); overload;
 
-    class procedure Contains(const theString : string; const subString : string; const ignoreCase : boolean = true; const message : string = '');overload;
-    class procedure StartsWith(const subString : string; const theString : string;const ignoreCase : boolean = true; const message : string = '');
-    class procedure EndsWith(const subString : string; const theString : string;const ignoreCase : boolean = true; const message : string = '');
+    class procedure Contains(const theString : string; const subString : string; const ignoreCase : boolean; const message : string = ''); overload;
+    class procedure Contains(const theString : string; const subString : string; const message : string = ''); overload;
+    class procedure DoesNotContain(const theString : string; const subString : string; const ignoreCase : boolean; const message : string = ''); overload;
+    class procedure DoesNotContain(const theString : string; const subString : string; const message : string = ''); overload;
+    class procedure Contains(const theStrings : TStrings; const subString : string; const ignoreCase : boolean; const message : string = ''); overload;
+    class procedure Contains(const theStrings : TStrings; const subString : string; const message : string = ''); overload;
+    class procedure DoesNotContain(const theStrings : TStrings; const subString : string; const ignoreCase : boolean; const message : string = ''); overload;
+    class procedure DoesNotContain(const theStrings : TStrings; const subString : string; const message : string = ''); overload;
+    class procedure StartsWith(const subString : string; const theString : string; const ignoreCase : boolean; const message : string = ''); overload;
+    class procedure StartsWith(const subString : string; const theString : string; const message : string = ''); overload;
+    class procedure EndsWith(const subString : string; const theString : string; const ignoreCase : boolean; const message : string = ''); overload;
+    class procedure EndsWith(const subString : string; const theString : string; const message : string = ''); overload;
     class procedure InheritsFrom(const descendant : TClass; const parent : TClass; const message : string = '');
 {$IFDEF DELPHI_XE_UP}
     //Delphi 2010 compiler bug breaks this
     class procedure IsType<T>(const value : T; const message : string = '');overload;deprecated 'use inheritsfrom - istype is useless';
 {$ENDIF}
+
+    /// <summary>
+    ///   Checks that there is no difference between the given strings. If there is a difference, then
+    ///   the test will fail with extended informations about the starting position of the difference.
+    /// </summary>
+    class procedure NoDiff(const expected, actual: string; const ignoreCase : boolean; const message : string = ''); overload;
+    /// <summary>
+    ///   Checks that there is no difference between the given strings. If there is a difference, then
+    ///   the test will fail with extended informations about the starting position of the difference.
+    /// </summary>
+    class procedure NoDiff(const expected, actual: string; const message : string = ''); overload;
 
     {$IFDEF SUPPORTS_REGEX}
     class procedure IsMatch(const regexPattern : string; const theString : string; const message : string = '');
@@ -215,6 +260,9 @@ type
     class property OnAssert: TProc read fOnAssert write fOnAssert;
     class property TestFailure: ExceptClass read fTestFailure write fTestFailure;
     class property TestPass: ExceptClass read fTestPass write fTestPass;
+    class property IgnoreCaseDefault: boolean read fIgnoreCaseDefault write fIgnoreCaseDefault;
+
+    class constructor Create;
   end;
 
 {$IFDEF DELPHI_XE_DOWN}
@@ -224,15 +272,32 @@ type
 implementation
 
 uses
+  DUnitX.ResStrs,
+  DUnitX.Utils,
+  {$IFDEF SUPPORTS_REGEX}
+    {$IFDEF USE_TREGEXPR}
+    RegExpr,
+    {$ELSE}
+    System.RegularExpressions,
+    {$ENDIF}
+  {$ENDIF}
+  {$IFDEF USE_NS}
+  System.Generics.Collections,
+  System.Generics.Defaults,
+  System.Math,
+  System.Rtti,
+  System.StrUtils,
+  System.TypInfo,
+  System.Variants;
+  {$ELSE}
+  Generics.Collections,
   Generics.Defaults,
   Math,
-  {$IFDEF SUPPORTS_REGEX}
-  RegularExpressions,
-  {$ENDIF}
   Rtti,
   StrUtils,
   TypInfo,
   Variants;
+  {$ENDIF}
 
 {$IFDEF DELPHI_XE_DOWN}
 function IsBadPointer(P: Pointer):Boolean;register;
@@ -273,8 +338,8 @@ end;
 class procedure Assert.AreEqual(const expected, actual, tolerance: Extended; const message: string);
 begin
   DoAssert;
-  if not Math.SameValue(expected,actual,tolerance) then
-    FailFmt('Expected %g but got %g %s' ,[expected,actual,message], ReturnAddress);
+  if not {$IFDEF USE_NS}System.Math.{$ENDIF}SameValue(expected,actual,tolerance) then
+    FailFmt(SUnexpectedErrorExt ,[expected,actual,message], ReturnAddress);
 end;
 
 class procedure Assert.AreEqual(const expected, actual: TClass; const message: string);
@@ -315,7 +380,7 @@ begin
   begin
     expectedValue := TValue.From<T>(expected);
     actualValue := TValue.From<T>(actual);
-    FailFmt('Expected %s is not equal to actual %s %s', [expectedValue.ToString, actualValue.ToString, message], ReturnAddress)
+    FailFmt(SNotEqualErrorStr, [expectedValue.ToString, actualValue.ToString, message], ReturnAddress)
   end;
 end;
 {$ENDIF}
@@ -332,21 +397,28 @@ class procedure Assert.AreEqual(const expected, actual: Integer; const message: 
 begin
   DoAssert;
   if expected <> actual then
-    FailFmt('Expected %d but got %d %s' ,[expected, actual, message], ReturnAddress);
+    FailFmt(SUnexpectedErrorInt ,[expected, actual, message], ReturnAddress);
 end;
 
 class procedure Assert.AreEqual(const expected, actual: boolean; const message: string);
 begin
   DoAssert;
   if expected <> actual then
-    FailFmt('Expected %s but got %s %s' ,[BoolToStr(expected, true), BoolToStr(actual, true), message], ReturnAddress);
+    FailFmt(SUnexpectedErrorStr ,[BoolToStr(expected, true), BoolToStr(actual, true), message], ReturnAddress);
+end;
+
+class procedure Assert.AreEqual(const expected, actual: cardinal; const message: string);
+begin
+  DoAssert;
+  if expected <> actual then
+    FailFmt(SUnexpectedErrorInt ,[expected, actual, message], ReturnAddress);
 end;
 
 class procedure Assert.AreEqual(const expected, actual, tolerance: Double; const message: string);
 begin
   DoAssert;
-  if not Math.SameValue(expected,actual,tolerance) then
-    FailFmt('Expected %g but got %g %s' ,[expected,actual,message], ReturnAddress);
+  if not {$IFDEF USE_NS}System.Math.{$ENDIF}SameValue(expected,actual,tolerance) then
+    FailFmt(SUnexpectedErrorDbl ,[expected,actual,message], ReturnAddress);
 end;
 
 class procedure Assert.AreEqual(const expected, actual: Double; const message: string);
@@ -369,14 +441,14 @@ class procedure Assert.AreEqualMemory(const expected : Pointer; const actual : P
 begin
   DoAssert;
   if not CompareMem(expected, actual, size) then
-    Fail('Memory values are not equal. ' + message, ReturnAddress);
+    Fail(SMemoryValuesNotEqual + message, ReturnAddress);
 end;
 
 class procedure Assert.AreNotEqual(const expected, actual, tolerance: Extended; const message: string);
 begin
   DoAssert;
-  if Math.SameValue(expected, actual, tolerance) then
-    FailFmt('%g equals actual %g %s' ,[expected,actual,message], ReturnAddress);
+  if {$IFDEF USE_NS}System.Math.{$ENDIF}SameValue(expected, actual, tolerance) then
+    FailFmt(SEqualsErrorExt ,[expected,actual,message], ReturnAddress);
 end;
 
 class procedure Assert.AreNotEqual(const expected, actual: string;const ignoreCase: boolean; const message: string);
@@ -392,7 +464,7 @@ class procedure Assert.AreNotEqual(const expected, actual: string;const ignoreCa
 begin
   DoAssert;
   if AreNotEqualText(expected, actual, ignoreCase) then
-     FailFmt('[%s] is equal to [%s] %s', [expected, actual, message], ReturnAddress);
+    FailFmt(SEqualsErrorStr, [expected, actual, message], ReturnAddress);
 end;
 
 class procedure Assert.AreNotEqual(const expected, actual: TClass; const message: string);
@@ -433,7 +505,7 @@ begin
     expectedValue := TValue.From<T>(expected);
     actualValue := TValue.From<T>(actual);
 
-    FailFmt('Expected %s equals actual %s %s',[expectedValue.ToString, actualValue.ToString, message], ReturnAddress);
+    FailFmt(SEqualsErrorStr2,[expectedValue.ToString, actualValue.ToString, message], ReturnAddress);
   end;
 end;
 {$ENDIF}
@@ -442,7 +514,7 @@ class procedure Assert.AreNotEqual(const expected, actual: Integer; const messag
 begin
   DoAssert;
   if expected = actual then
-    FailFmt('Expected %d equals actual %d %s' ,[expected, actual, message], ReturnAddress);
+    FailFmt(SEqualsErrorInt ,[expected, actual, message], ReturnAddress);
 end;
 
 class procedure Assert.AreNotEqual(const expected, actual: Extended; const message: string);
@@ -464,43 +536,43 @@ end;
 class procedure Assert.AreNotEqual(const expected, actual, tolerance: double; const message: string);
 begin
   DoAssert;
-  if Math.SameValue(expected, actual, tolerance) then
-    FailFmt('%g equals actual %g %s' ,[expected,actual,message], ReturnAddress);
+  if {$IFDEF USE_NS}System.Math.{$ENDIF}SameValue(expected, actual, tolerance) then
+    FailFmt(SEqualsErrorDbl ,[expected,actual,message], ReturnAddress);
 end;
 
 class procedure Assert.AreNotEqualMemory(const expected, actual: Pointer; const size: Cardinal; const message: string);
 begin
   DoAssert;
   if CompareMem(expected,actual, size) then
-    Fail('Memory values are equal. ' + message, ReturnAddress);
+    Fail(SMemoryValuesEqual + message, ReturnAddress);
 end;
 
 class procedure Assert.AreNotSame(const expected, actual: TObject; const message: string);
 begin
   DoAssert;
   if expected.Equals(actual) then
-    FailFmt('Object [%s] Equals Object [%s] %s',[expected.ToString,actual.ToString,message], ReturnAddress);
+    FailFmt(SEqualsErrorObj, [expected.ToString,actual.ToString,message], ReturnAddress);
 end;
 
 class procedure Assert.AreNotSame(const expected, actual: IInterface; const message: string);
 begin
   DoAssert;
   if (expected as IInterface) = (actual as IInterface) then
-    FailFmt('references are the same. %s',[message], ReturnAddress);
+    FailFmt(SEqualsErrorIntf,[message], ReturnAddress);
 end;
 
 class procedure Assert.AreSame(const expected, actual: IInterface; const message: string);
 begin
   DoAssert;
   if (expected as IInterface) <> (actual as IInterface) then
-    FailFmt('references are Not the same. %s',[message], ReturnAddress);
+    FailFmt(SNotEqualErrorIntf,[message], ReturnAddress);
 end;
 
 class procedure Assert.AreSame(const expected, actual: TObject; const message: string);
 begin
   DoAssert;
   if not expected.Equals(actual) then
-    FailFmt('Object [%s] Not Object [%s] %s',[expected.ToString,actual.ToString,message], ReturnAddress);
+    FailFmt(SNotEqualErrorObj, [expected.ToString,actual.ToString,message], ReturnAddress);
 end;
 
 {$IFDEF DELPHI_XE_UP}
@@ -518,7 +590,7 @@ begin
       exit;
   end;
 
-  FailFmt('List does not contain value %s. %s',[TValue.From<T>(value).ToString, message], ReturnAddress);
+  FailFmt(SValueNotInList,[TValue.From<T>(value).ToString, message], ReturnAddress);
 end;
 
 class procedure Assert.Contains<T>(const arr : array of T; const value : T; const message : string = '');
@@ -534,7 +606,7 @@ begin
       exit;
   end;
 
-  FailFmt('List does not contain value %s. %s',[TValue.From<T>(value).ToString, message], ReturnAddress);
+  FailFmt(SValueNotInList,[TValue.From<T>(value).ToString, message], ReturnAddress);
 end;
 {$ENDIF}
 
@@ -550,7 +622,7 @@ begin
   for o in list do
   begin
     if comparer.Compare(o,value) = 0 then
-      FailFmt('List contains value %s. %s',[TValue.From<T>(value).ToString, message], ReturnAddress);
+      FailFmt(SValueInList,[TValue.From<T>(value).ToString, message], ReturnAddress);
   end;
 end;
 
@@ -564,7 +636,7 @@ begin
   for o in arr do
   begin
     if comparer.Compare(o,value) = 0 then
-      FailFmt('List contains value %s. %s',[TValue.From<T>(value).ToString, message], ReturnAddress);
+      FailFmt(SValueInList,[TValue.From<T>(value).ToString, message], ReturnAddress);
   end;
 end;
 {$ENDIF}
@@ -589,11 +661,43 @@ begin
   raise fTestPass.Create(message);
 end;
 
+class procedure Assert.StartsWith(const subString, theString, message: string);
+begin
+  Assert.StartsWith(subString, theString, fIgnoreCaseDefault, message);
+end;
+
+class function Assert.StreamsEqual(const stream1, stream2: TStream): boolean;
+const
+  BlockSize = 4096;
+var
+  Buffer1: array[0..BlockSize - 1] of byte;
+  Buffer2: array[0..BlockSize - 1] of byte;
+  BufferLen: integer;
+begin
+  Result := False;
+
+  if stream1.Size = stream2.Size then
+  begin
+    stream1.Position := 0;
+    stream2.Position := 0;
+
+    while stream1.Position < stream1.Size do
+    begin
+      BufferLen := stream1.Read(Buffer1, BlockSize);
+      stream2.Read(Buffer2, BlockSize);
+      if not CompareMem(@Buffer1, @Buffer2, BufferLen) then
+        exit;
+    end;
+
+    Result := True;
+  end;
+end;
+
 class function Assert.Implements<T>(value: IInterface; const message: string) : T;
 begin
   DoAssert;
   if not Supports(value,GetTypeData(TypeInfo(T)).Guid,result) then
-    FailFmt('value does not implement %s. %s', [GetTypeName(TypeInfo(T)), message],ReturnAddress);
+    FailFmt(SIntfNotImplemented, [GetTypeName(TypeInfo(T)), message],ReturnAddress);
 end;
 
 class procedure Assert.InheritsFrom(const descendant, parent: TClass; const message: string);
@@ -611,7 +715,7 @@ begin
     if parent = nil then
       msg := msg + 'nil'
     else
-      msg := parent.ClassName + msg;
+      msg := msg + parent.ClassName;
     msg := msg + '.';
     if True then
     if message <> '' then
@@ -625,35 +729,35 @@ class procedure Assert.IsEmpty(const value: IInterfaceList; const message: strin
 begin
   DoAssert;
   if value.Count > 0 then
-    FailFmt('List is Not empty. %s',[message], ReturnAddress);
+    FailFmt(SListNotEmpty,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsEmpty(const value: TList; const message: string);
 begin
   DoAssert;
   if value.Count > 0 then
-    FailFmt('List is Not empty. %s',[message], ReturnAddress);
+    FailFmt(SListNotEmpty,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsEmpty(const value, message: string);
 begin
   DoAssert;
   if Length(value) > 0 then
-    FailFmt('String is Not empty. %s',[message], ReturnAddress);
+    FailFmt(SStrNotEmpty,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsEmpty(const value: Variant; const message: string);
 begin
   DoAssert;
   if VarIsEmpty(value) or VarIsNull(value) then
-    FailFmt('Variant is Not empty. %s',[message], ReturnAddress);
+    FailFmt(SVarNotEmpty,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsEmpty(const value: TStrings; const message: string);
 begin
   DoAssert;
   if value.Count > 0 then
-    FailFmt('List is Not empty. %s',[message], ReturnAddress);
+    FailFmt(SListNotEmpty,[message], ReturnAddress);
 end;
 
 {$IFDEF DELPHI_XE_UP}
@@ -669,7 +773,7 @@ begin
     Inc(count);
 
   if count > 0 then
-    FailFmt('List is Not empty. %s',[message], ReturnAddress);
+    FailFmt(SListNotEmpty,[message], ReturnAddress);
 end;
 {$ENDIF}
 
@@ -677,42 +781,42 @@ class procedure Assert.IsFalse(const condition: boolean; const message: string);
 begin
   DoAssert;
   if condition then
-   FailFmt('Condition is True when False expected. %s',[message], ReturnAddress);
+    FailFmt(SIsFalseError,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotEmpty(const value: TList; const message: string);
 begin
   DoAssert;
   if value.Count = 0 then
-   FailFmt('List is Empty. %s',[message], ReturnAddress);
+    FailFmt(SListEmpty, [message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotEmpty(const value: IInterfaceList; const message: string);
 begin
   DoAssert;
   if value.Count = 0 then
-   FailFmt('List is Empty. %s',[message], ReturnAddress);
+    FailFmt(SListEmpty, [message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotEmpty(const value: TStrings; const message: string);
 begin
   DoAssert;
   if value.Count = 0 then
-   FailFmt('List is Empty. %s',[message], ReturnAddress);
+    FailFmt(SListEmpty, [message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotEmpty(const value, message: string);
 begin
   DoAssert;
   if value = '' then
-   FailFmt('Variant is Empty. %s',[message], ReturnAddress);
+    FailFmt(SStrEmpty,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotEmpty(const value: Variant; const message: string);
 begin
   DoAssert;
   if VarIsEmpty(value) then
-    FailFmt('Variant is Empty. %s',[message], ReturnAddress);
+    FailFmt(SVarEmpty,[message], ReturnAddress);
 end;
 
 {$IFDEF DELPHI_XE_UP}
@@ -728,7 +832,7 @@ begin
     Inc(count);
 
   if count = 0 then
-    FailFmt('List is Empty when Not empty expected. %s',[message], ReturnAddress);
+    FailFmt(SListEmpty,[message], ReturnAddress);
 end;
 {$ENDIF}
 
@@ -736,68 +840,107 @@ class procedure Assert.IsNotNull(const condition: IInterface; const message: str
 begin
   DoAssert;
   if condition = nil then
-    FailFmt('Interface is Nil when not nil expected. %s',[message], ReturnAddress);
+    FailFmt(SIntfNil,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotNull(const condition: Pointer; const message: string);
 begin
   DoAssert;
   if condition = nil then
-    FailFmt('Pointer is Nil when not Nil expected. %s',[message], ReturnAddress);
+    FailFmt(SPointerNil,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotNull(const condition: TObject; const message: string);
 begin
   DoAssert;
   if condition = nil then
-    FailFmt('Object is Nil when Not Nil expected. %s',[message], ReturnAddress);
+    FailFmt(SObjNil,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNotNull(const condition: Variant; const message: string);
 begin
   DoAssert;
   if VarIsNull(condition) then
-    FailFmt('Variant is Null when Not Null expcted. %s',[message], ReturnAddress);
+    FailFmt(SVariantNull,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNull(const condition: Variant; const message: string);
 begin
   DoAssert;
   if not VarIsNull(condition) then
-    FailFmt('Variant is Not Null when Null expected. [%s]',[message], ReturnAddress);
+    FailFmt(SVariantNotNull,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNull(const condition: IInterface; const message: string);
 begin
   DoAssert;
   if condition <> nil then
-    FailFmt('Interface is not Nil when nil expected. [%s]',[message], ReturnAddress);
+    FailFmt(SIntfNotNil,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNull(const condition: TObject; const message: string);
 begin
   DoAssert;
   if condition <> nil then
-    FailFmt('Object is not nil when nil expected. [%s]',[message], ReturnAddress);
+    FailFmt(SObjNotNil,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsNull(const condition: Pointer; const message: string);
 begin
   DoAssert;
   if condition <> nil then
-    FailFmt('Pointer is not Nil when nil expected. [%s]',[message], ReturnAddress);
+    FailFmt(SPointerNotNil,[message], ReturnAddress);
 end;
 
 class procedure Assert.IsTrue(const condition: boolean;const message : string);
 begin
   DoAssert;
   if not condition then
-    FailFmt('Condition is False when True expected. [%s]',[message], ReturnAddress);
+    FailFmt(SIsTrueError,[message], ReturnAddress);
+end;
+
+class procedure Assert.NoDiff(const expected, actual: string; const ignoreCase : boolean; const message: string);
+const
+  DIFF_LENGTH = 10;
+var
+  lenExp, lenAct: integer;
+  strExp, strAct: string;
+  position: Integer;
+begin
+  DoAssert;
+  lenExp := Length(expected);
+  lenAct := Length(actual);
+
+  if lenExp <> lenAct then
+    FailFmt(SLengthOfStringsNotEqual + ': ' + SUnexpectedErrorInt, [lenExp, lenAct, message])
+  else begin
+    if ignoreCase then
+    begin
+      strExp := UpperCase(expected);
+      strAct := UpperCase(actual);
+    end
+    else begin
+      strExp := expected;
+      strAct := actual;
+    end;
+    for position := 1 to lenExp do
+    begin
+      if (position <= lenAct) and (strExp[position] <> strAct[position]) then
+        FailFmt(SDiffAtPosition + ': ' + SStrDoesNotMatch, [position,
+          TStrUtils.EncodeWhitespace(Copy(expected, position, DIFF_LENGTH)),
+          TStrUtils.EncodeWhitespace(Copy(actual, position, DIFF_LENGTH)), message]);
+    end;
+  end;
+end;
+
+class procedure Assert.NoDiff(const expected, actual, message: string);
+begin
+  NoDiff(expected, actual, false, message);
 end;
 
 class procedure Assert.NotImplemented;
 begin
-  Assert.Fail('Not implemented!');
+  Assert.Fail(SNotImplemented);
 end;
 
 {$IFDEF DELPHI_XE_UP}
@@ -809,7 +952,7 @@ begin
   DoAssert;
   val := TValue.From<T>(value);
   if not val.IsType<T> then
-    Fail('value is not of type T', ReturnAddress);
+    Fail(STypeError, ReturnAddress);
 end;
 {$ENDIF}
 
@@ -833,10 +976,10 @@ begin
     begin
       if e is Exception  then
       begin
-        FailFmt('Method raised [%s] was expecting not to raise Any exception. %s', [e.ClassName, exception(e).message], ReturnAddress);
+        FailFmt(SUnexpectedException, [e.ClassName, exception(e).message], ReturnAddress);
       end
       else
-        FailFmt('Method raised [%s] was expecting not to raise Any exception.', [e.ClassName], ReturnAddress);
+        FailFmt(SUnexpectedExceptionAlt, [e.ClassName], ReturnAddress);
     end;
   end;
 end;
@@ -862,10 +1005,10 @@ begin
       if exceptionClass <> nil then
       begin
         if e is exceptionClass then
-           Fail('Method raised an exception of type : ' + exceptionClass.ClassName + sLineBreak + e.Message + AddLineBreak(msg), ReturnAddress);
+          Fail(SMethodRaisedException + exceptionClass.ClassName + sLineBreak + e.Message + AddLineBreak(msg), ReturnAddress);
       end
       else
-        FailFmt('Method raised [%s] was expecting not to raise [%s]. %s', [e.ClassName, exceptionClass.ClassName, e.message], ReturnAddress);
+        FailFmt(SMethodRaisedExceptionAlt, [e.ClassName, exceptionClass.ClassName, e.message], ReturnAddress);
     end;
   end;
 end;
@@ -892,7 +1035,7 @@ begin
       Exit;
     end;
   end;
-  Fail('Method did not throw any exceptions.' + AddLineBreak(msg), ReturnAddress);
+  Fail(SNoException + AddLineBreak(msg), ReturnAddress);
 end;
 
 class procedure Assert.WillNotRaise(const AMethod : TTestLocalMethod; const exceptionClass : ExceptClass; const msg : string);
@@ -906,10 +1049,10 @@ begin
       if exceptionClass <> nil then
       begin
         if e.ClassType = exceptionClass then
-           Fail('Method raised an exception of type : ' + exceptionClass.ClassName + sLineBreak + e.Message + AddLineBreak(msg), ReturnAddress);
+          Fail(SMethodRaisedException + exceptionClass.ClassName + sLineBreak + e.Message + AddLineBreak(msg), ReturnAddress);
       end
       else
-        FailFmt('Method raised [%s] was expecting not to raise exception. %s', [e.ClassName, e.message], ReturnAddress);
+        FailFmt(SUnexpectedException, [e.ClassName, e.message], ReturnAddress);
     end;
   end;
 end;
@@ -935,7 +1078,7 @@ begin
       Exit;
     end;
   end;
-  Fail('Method did not throw any exceptions.' + AddLineBreak(msg), ReturnAddress);
+  Fail(SNoException + AddLineBreak(msg), ReturnAddress);
 end;
 
 class procedure Assert.WillRaiseAny(const AMethod: TTestMethod; const msg: string);
@@ -960,7 +1103,7 @@ begin
       Exit;
     end;
   end;
-  Fail('Method did not throw any exceptions.' + AddLineBreak(msg), ReturnAddress);
+  Fail(SNoException + AddLineBreak(msg), ReturnAddress);
 end;
 
 class procedure Assert.WillRaiseDescendant(const AMethod: TTestMethod; const exceptionClass: ExceptClass; const msg: string);
@@ -983,16 +1126,16 @@ begin
     begin
       CheckExceptionClass(E, exceptionClass);
       if (exceptionMsg <> '') and (not SameStr(E.Message, exceptionMsg)) then
-        FailFmt('Exception [%s] was raised with message [%s] was expecting [%s] %s', [E.ClassName, E.Message, exceptionMsg, msg]);
+        FailFmt(SUnexpectedExceptionMessage, [E.ClassName, E.Message, exceptionMsg, msg]);
       Exit;
     end;
   end;
-  Fail('Method did not throw any exceptions.' + AddLineBreak(msg), ReturnAddress);
+  Fail(SNoException + AddLineBreak(msg), ReturnAddress);
 end;
 
 class procedure Assert.AreEqual(const expected : string; const actual : string; const message : string);
 begin
-  Assert.AreEqual(expected, actual, true, message);
+  Assert.AreEqual(expected, actual, fIgnoreCaseDefault, message);
 end;
 
 class procedure Assert.AreEqual(const expected, actual : string;  const ignoreCase : boolean; const message: string);
@@ -1001,10 +1144,10 @@ begin
   if ignoreCase then
   begin
     if not SameText(expected,actual) then
-      FailFmt('[%s] is Not Equal to [%s] %s',[expected,actual,message], ReturnAddress);
+      FailFmt(SNotEqualErrorStr,[expected,actual,message], ReturnAddress);
   end
   else if not SameStr(expected,actual) then
-    FailFmt('[%s] is Not Equal to [%s] %s',[expected,actual,message], ReturnAddress);
+    FailFmt(SNotEqualErrorStr,[expected,actual,message], ReturnAddress);
 end;
 
 class procedure Assert.CheckExceptionClass(E: Exception; const exceptionClass: ExceptClass);
@@ -1014,18 +1157,32 @@ begin
     Exit;
 
   if E.ClassType <> exceptionClass then
-    FailFmt('Method raised [%s] was expecting [%s]. %s', [E.ClassName, exceptionClass.ClassName, E.message], ReturnAddress);
+    FailFmt(SCheckExceptionClassError, [E.ClassName, exceptionClass.ClassName, E.message], ReturnAddress);
 end;
 
-class procedure Assert.CheckExceptionClassDescendant(E: Exception;
-  const exceptionClass: ExceptClass);
+class procedure Assert.CheckExceptionClassDescendant(E: Exception; const exceptionClass: ExceptClass);
 begin
   DoAssert;
   if exceptionClass = nil then
     Exit;
 
   if not (E is exceptionClass) then
-    FailFmt('Method raised [%s] was expecting a descendant of [%s]. %s', [E.ClassName, exceptionClass.ClassName, E.message], ReturnAddress);
+    FailFmt(SCheckExceptionClassDescError, [E.ClassName, exceptionClass.ClassName, E.message], ReturnAddress);
+end;
+
+class procedure Assert.Contains(const theStrings: TStrings; const subString: string; const ignoreCase: boolean; const message: string);
+begin
+  Contains(theStrings.Text, subString, ignoreCase, message);
+end;
+
+class procedure Assert.Contains(const theStrings: TStrings; const subString, message: string);
+begin
+  Contains(theStrings.Text, subString, message);
+end;
+
+class procedure Assert.Contains(const theString, subString, message: string);
+begin
+  Contains(theString, subString, fIgnoreCaseDefault, message);
 end;
 
 class procedure Assert.Contains(const theString : string; const subString : string; const ignoreCase : boolean; const message : string);
@@ -1033,11 +1190,16 @@ begin
   DoAssert;
   if ignoreCase then
   begin
-    if not StrUtils.ContainsText(theString,subString) then
-      FailFmt('[%s] does not contain [%s] %s',[theString,subString,message], ReturnAddress);
+    if not {$IFDEF USE_NS}System.StrUtils.{$ENDIF}ContainsText(theString,subString) then
+      FailFmt(SStrDoesNotContain, [theString,subString,message], ReturnAddress);
   end
-  else if not StrUtils.ContainsStr(theString,subString) then
-    FailFmt('[%s] does not contain [%s] %s',[theString,subString,message], ReturnAddress);
+  else if not {$IFDEF USE_NS}System.StrUtils.{$ENDIF}ContainsStr(theString,subString) then
+    FailFmt(SStrDoesNotContain, [theString,subString,message], ReturnAddress);
+end;
+
+class constructor Assert.Create;
+begin
+  fIgnoreCaseDefault := true;
 end;
 
 class procedure Assert.DoAssert;
@@ -1046,24 +1208,63 @@ begin
     fOnAssert();
 end;
 
+class procedure Assert.DoesNotContain(const theString, subString, message: string);
+begin
+  DoesNotContain(theString, subString, fIgnoreCaseDefault, message);
+end;
+
+class procedure Assert.DoesNotContain(const theString, subString: string; const ignoreCase: boolean; const message: string);
+begin
+  DoAssert;
+  if ignoreCase then
+  begin
+    if {$IFDEF USE_NS}System.{$ENDIF}StrUtils.ContainsText(theString, subString) then
+      FailFmt(SStrDoesNotContain,[theString, subString, message], ReturnAddress);
+  end
+  else if {$IFDEF USE_NS}System.{$ENDIF}StrUtils.ContainsStr(theString, subString) then
+    FailFmt(SStrDoesNotContain,[theString, subString, message], ReturnAddress);
+end;
+
 class procedure Assert.EndsWith(const subString : string; const theString : string; const ignoreCase : boolean; const message : string);
 begin
   DoAssert;
   if ignoreCase then
   begin
-    if not StrUtils.EndsText(subString,theString) then
-      FailFmt('[%s] does not end with [%s] %s',[theString,subString,message], ReturnAddress);
+    if not {$IFDEF USE_NS}System.StrUtils.{$ENDIF}EndsText(subString,theString) then
+      FailFmt(SStrDoesNotEndWith,[theString,subString,message], ReturnAddress);
   end
-  else if not StrUtils.EndsStr(subString,theString) then
-    FailFmt('[%s] does not end with [%s] %s',[theString,subString,message], ReturnAddress);
+  else if not {$IFDEF USE_NS}System.StrUtils.{$ENDIF}EndsStr(subString,theString) then
+    FailFmt(SStrDoesNotEndWith, [theString,subString,message], ReturnAddress);
 end;
 
 {$IFDEF SUPPORTS_REGEX}
 class procedure Assert.IsMatch(const regexPattern, theString, message: string);
+
+  {$IFDEF USE_TREGEXPR}
+  function PerformIsMatch(): boolean;
+  var
+    RegExp: TRegExpr;
+  begin
+    RegExp := TRegExpr.Create;
+    try
+      RegExp.Expression := regexPattern;
+      Result := RegExp.Exec(theString);
+    finally
+      RegExp.Free;
+    end;
+  end;
+  {$ELSE}
+  function PerformIsMatch(): boolean;
+  begin
+    Result := TRegEx.IsMatch(theString,regexPattern);
+  end;
+  {$ENDIF}
+
 begin
   DoAssert;
-  if not TRegEx.IsMatch(theString,regexPattern) then
-    FailFmt('[%s] does not match [%s] %s',[theString,regexPattern,message], ReturnAddress);
+
+  if not PerformIsMatch then
+    FailFmt(SStrDoesNotMatch, [theString,regexPattern,message], ReturnAddress);
 end;
 {$ENDIF}
 
@@ -1073,15 +1274,112 @@ begin
 
   // passing an empty string into the StartsText results in an accessviolation
   if subString = '' then
-    FailFmt('subString cannot be empty',[], ReturnAddress);
+    FailFmt(SStrCannotBeEmpty, [], ReturnAddress);
 
   if ignoreCase then
   begin
-    if not StrUtils.StartsText(subString,theString) then
-      FailFmt('[%s] does Not Start with [%s] %s',[theString,subString,message], ReturnAddress);
+    if not {$IFDEF USE_NS}System.StrUtils.{$ENDIF}StartsText(subString,theString) then
+      FailFmt(SStrDoesNotStartWith, [theString,subString,message], ReturnAddress);
   end
-  else if not StrUtils.StartsStr(subString,theString) then
-    FailFmt('[%s] does Not Start with [%s] %s',[theString,subString,message], ReturnAddress);
+  else if not {$IFDEF USE_NS}System.StrUtils.{$ENDIF}StartsStr(subString,theString) then
+    FailFmt(SStrDoesNotStartWith, [theString,subString,message], ReturnAddress);
+end;
+
+class procedure Assert.AreEqual(const expected, actual: TGUID; const message: string);
+begin
+  DoAssert;
+  if not IsEqualGUID(expected, actual) then
+    FailFmt(SUnexpectedErrorGUID, [GUIDToString(expected), GUIDToString(actual), message], ReturnAddress);
+end;
+
+class procedure Assert.AreEqual(const expected, actual: word; const message: string);
+begin
+  DoAssert;
+  if expected <> actual then
+    FailFmt(SUnexpectedErrorInt ,[expected, actual, message], ReturnAddress);
+end;
+
+class procedure Assert.AreEqual(const expected, actual: TStream; const message: string);
+begin
+  DoAssert;
+  if not StreamsEqual(expected, actual) then
+    FailFmt(SUnexpectedErrorStream, [message], ReturnAddress);
+end;
+
+class procedure Assert.AreNotEqual(const expected, actual: TGUID; const message: string);
+begin
+  DoAssert;
+  if IsEqualGUID(expected, actual) then
+    FailFmt(SEqualsErrorGUID,[GUIDToString(expected), GUIDToString(actual), message], ReturnAddress);
+end;
+
+class procedure Assert.AreNotEqual(const expected, actual: TStream; const message: string);
+begin
+  DoAssert;
+  if StreamsEqual(expected, actual) then
+    FailFmt(SEqualsErrorStream, [message], ReturnAddress);
+end;
+
+class procedure Assert.AreNotEqual(const expected, actual, message: string);
+begin
+  AreNotEqual(expected, actual, fIgnoreCaseDefault, message);
+end;
+
+class procedure Assert.EndsWith(const subString, theString, message: string);
+begin
+  Assert.EndsWith(subString, theString, fIgnoreCaseDefault, message);
+end;
+
+class procedure Assert.DoesNotContain(const theStrings: TStrings; const subString: string; const ignoreCase: boolean; const message: string);
+begin
+  DoesNotContain(theStrings.Text, subString, ignoreCase, message);
+end;
+
+class procedure Assert.DoesNotContain(const theStrings: TStrings; const subString, message: string);
+begin
+  DoesNotContain(theStrings.Text, subString, message);
+end;
+
+class procedure Assert.AreEqual(const expected, actual: TStrings; const ignoreLines: array of integer; const message: string);
+var
+  index: Integer;
+  lineNumber: integer;
+  ignoreLinesDict: TDictionary<Integer, Boolean>;
+begin
+  DoAssert;
+  IsTrue(expected <> actual, message);
+  ignoreLinesDict := TDictionary<Integer,Boolean>.Create;
+  try
+    if (Length(ignoreLines) > 0) then
+    begin
+      for index := 0 to Length(ignoreLines)-1 do
+      begin
+        ignoreLinesDict.Add(ignoreLines[index], true);
+      end;
+    end;
+
+    if (expected.Count <> actual.Count) then
+      FailFmt(SNumberOfStringsNotEqual + ': ' + SUnexpectedErrorInt, [expected.Count, actual.Count, message], ReturnAddress);
+
+    for index := 0 to expected.Count - 1 do
+    begin
+      lineNumber := index + 1;
+      if not ignoreLinesDict.ContainsKey(lineNumber) then
+      begin
+        if (expected[index] <> actual[index]) then
+        begin
+          NoDiff(expected[index], actual[index], Format('at line %d', [lineNumber]) + ' ' + message);
+        end;
+      end;
+    end;
+  finally
+    ignoreLinesDict.Free;
+  end;
+end;
+
+class procedure Assert.AreEqual(const expected, actual: TStrings; const message: string);
+begin
+  AreEqual(expected, actual, [], message);
 end;
 
 end.

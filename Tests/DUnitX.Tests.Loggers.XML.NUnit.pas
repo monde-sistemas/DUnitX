@@ -29,12 +29,17 @@ unit DUnitX.Tests.Loggers.XML.NUnit;
 
 interface
 
+{$I DUnitX.inc}
+
 uses
+  {$IFDEF USE_NS}
+  System.Classes,
+  {$ELSE}
   Classes,
+  {$ENDIF}
   DUnitX.TestFramework,
   DUnitX.Loggers.XML.NUnit;
 
-{$I DUnitX.inc}
 
 type
   {$M+}
@@ -55,10 +60,17 @@ type
 implementation
 
 uses
+  {$IFDEF USE_NS}
+  System.Rtti,
+  System.SysUtils,
+  System.TimeSpan,
+  System.DateUtils,
+  {$ELSE}
   Rtti,
   SysUtils,
   TimeSpan,
   DateUtils,
+  {$ENDIF}
 {$IFNDEF DELPHI_XE_DOWN}
   Delphi.Mocks,
 {$ENDIF}
@@ -139,7 +151,7 @@ const
   EXPECTED_RESULTS_FORMAT_STR = '<test-results total="%d" notrun="%d" date="%s" time="%s" >';
   EXPECTED_APP_NAME_FORMAT_STR = '<application name="%s" />';
 begin
-  //TODO: Break this unit tests into three seperate specific tests for each of the header sections.
+  //TODO: Break this unit tests into three separate specific tests for each of the header sections.
   mockStream := TStringStream.Create('', TEncoding.UTF8);
   logger := TDUnitXXMLNUnitLogger.Create(mockStream);
   logger.OnTestingStarts(0, 40, 30);

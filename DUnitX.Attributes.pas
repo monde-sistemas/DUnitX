@@ -2,7 +2,7 @@
 {                                                                           }
 {           DUnitX                                                          }
 {                                                                           }
-{           Copyright (C) 2012 Vincent Parrett                              }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
 {                                                                           }
 {           vincent@finalbuilder.com                                        }
 {           http://www.finalbuilder.com                                     }
@@ -28,11 +28,17 @@ unit DUnitX.Attributes;
 
 interface
 
-uses
-  DUnitX.Types,
-  Rtti;
-
 {$I DUnitX.inc}
+
+uses
+  {$IFDEF USE_NS}
+  System.Rtti,
+  System.SysUtils,
+  {$ELSE}
+  Rtti,
+  SysUtils,
+  {$ENDIF}
+  DUnitX.Types;
 
 type
   /// <summary>
@@ -109,7 +115,23 @@ type
     FIgnoreMemoryLeaks : Boolean;
   public
     constructor Create(const AIgnoreMemoryLeaks : Boolean = True);
-    property IgnoreMemoryLeaks : Boolean read FIgnoreMemoryLeaks;
+    property IgnoreLeaks : Boolean read FIgnoreMemoryLeaks;
+  end;
+
+  ///	<summary>
+  ///	  Marks a test method to fail after the time specified.
+  ///  Currently only support on Win32 & Win64
+  ///	</summary>
+  ///	<remarks>
+  ///	  If [MaxTime(1000]] used then the test will fail if the
+  ///   test takes longer than 1000ms
+  ///	</remarks>
+  MaxTimeAttribute = class(TCustomAttribute)
+  private
+    FMaxTime : Cardinal;
+  public
+    constructor Create(const AMaxTime : Cardinal);
+    property MaxTime : Cardinal read FMaxTime;
   end;
 
   /// <summary>
@@ -155,7 +177,7 @@ type
   ///   Marks a test method to be repeated count times.
   /// </summary>
   /// <remarks>
-  ///   If [RepeatTest(0]] used then the test will be skipped and behaves like
+  ///   If [RepeatTest(0)] used then the test will be skipped and behaves like
   ///   IgnoreAttribute
   /// </remarks>
   RepeatTestAttribute = class(TCustomAttribute)
@@ -166,6 +188,22 @@ type
     property Count : Cardinal read FCount;
   end;
 
+  /// <summary>
+  ///   This attribute marks a method as a test method which will raise an exception.
+  /// </summary>
+  /// <remarks>
+  ///   If [WillRaise(ERangeError)] is used then the test will fail if it
+  ///   does not raise an ERangeError.
+  /// </remarks>
+  WillRaiseAttribute = class(TCustomAttribute)
+  private
+    FExpectedException : ExceptClass;
+    FExceptionInheritance: TExceptionInheritance;
+  public
+    constructor Create(AExpectedException : ExceptClass; const AInheritance : TExceptionInheritance = exExact);
+    property ExpectedException : ExceptClass read FExpectedException;
+    property ExceptionInheritance : TExceptionInheritance read FExceptionInheritance;
+  end;
 
   /// <summary>
   ///   Internal Structure used for those implementing CustomTestCase or
@@ -184,7 +222,7 @@ type
     Values : TValueArray;
   end;
 
-  TestCaseInfoArray = array of TestCaseInfo;
+  TestCaseInfoArray = TArray<TestCaseInfo>;
 
   /// <summary>
   ///   Base class for all Test Case Attributes.   
@@ -234,7 +272,7 @@ type
     function GetName: String;
     function GetValues: TValueArray;
   public
-    constructor Create(const ACaseName : string; const AValues : string;const ASeperator : string = ',');overload;
+    constructor Create(const ACaseName : string; const AValues : string;const ASeparator : string = ',');overload;
     property Name : String read GetName;
     property Values : TValueArray read GetValues;
   end;
@@ -242,23 +280,31 @@ type
 implementation
 
 uses
+  {$IFDEF USE_NS}
+  System.Types,
+  System.StrUtils,
+  {$ELSE}
+  Types,
   StrUtils,
-  DUnitX.Utils,
-  Types;
+  {$ENDIF}
+  DUnitX.Utils;
 
 { TestFixture }
 
 constructor TestFixtureAttribute.Create;
 begin
+  inherited;
 end;
 
 constructor TestFixtureAttribute.Create(const AName: string);
 begin
+  inherited Create;
   FName := AName;
 end;
 
 constructor TestFixtureAttribute.Create(const AName: string; const ADescription : string);
 begin
+  inherited Create;
   FName := AName;
   FDescription := ADescription;
 end;
@@ -275,11 +321,13 @@ end;
 
 constructor TestAttribute.Create;
 begin
+  inherited;
   FEnabled := True;
 end;
 
 constructor TestAttribute.Create(const AEnabled: boolean);
 begin
+  inherited Create;
   FEnabled := AEnabled;
 end;
 
@@ -287,6 +335,7 @@ end;
 
 constructor CategoryAttribute.Create(const ACategory: string);
 begin
+  inherited Create;
   FCategory := ACategory;
 end;
 
@@ -294,6 +343,7 @@ end;
 
 constructor IgnoreAttribute.Create(const AReason: string);
 begin
+  inherited Create;
   FReason := AReason;
 end;
 
@@ -301,19 +351,21 @@ end;
 
 constructor RepeatTestAttribute.Create(const ACount: Cardinal);
 begin
+  inherited Create;
   FCount := ACount;
 end;
 
 { TestCaseAttribute }
 
-constructor TestCaseAttribute.Create(const ACaseName: string; const AValues: string;const ASeperator : string);
+constructor TestCaseAttribute.Create(const ACaseName: string; const AValues: string;const ASeparator : string);
 var
   i: Integer;
   l : integer;
   lValues : TStringDynArray;
 begin
+  inherited Create;
   FCaseInfo.Name := ACaseName;
-  lValues := SplitString(AValues,ASeperator);
+  lValues := SplitString(AValues,ASeparator);
   l := Length(lValues);
   SetLength(FCaseInfo.Values,l);
   for i := 0 to l -1 do
@@ -333,6 +385,21 @@ end;
 function TestCaseAttribute.GetValues: TValueArray;
 begin
   Result := FCaseInfo.Values;
+end;
+
+{ MaxTimeAttribute }
+
+constructor MaxTimeAttribute.Create(const AMaxTime : Cardinal);
+begin
+  FMaxTime := AMaxTime;
+end;
+
+{ WillRaiseAttribute }
+
+constructor WillRaiseAttribute.Create(AExpectedException: ExceptClass; const AInheritance: TExceptionInheritance);
+begin
+  FExpectedException := AExpectedException;
+  FExceptionInheritance := AInheritance;
 end;
 
 end.

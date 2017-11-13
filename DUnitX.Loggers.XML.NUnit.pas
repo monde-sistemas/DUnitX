@@ -1,3 +1,29 @@
+{***************************************************************************}
+{                                                                           }
+{           DUnitX                                                          }
+{                                                                           }
+{           Copyright (C) 2015 Vincent Parrett & Contributors               }
+{                                                                           }
+{           vincent@finalbuilder.com                                        }
+{           http://www.finalbuilder.com                                     }
+{                                                                           }
+{                                                                           }
+{***************************************************************************}
+{                                                                           }
+{  Licensed under the Apache License, Version 2.0 (the "License");          }
+{  you may not use this file except in compliance with the License.         }
+{  You may obtain a copy of the License at                                  }
+{                                                                           }
+{      http://www.apache.org/licenses/LICENSE-2.0                           }
+{                                                                           }
+{  Unless required by applicable law or agreed to in writing, software      }
+{  distributed under the License is distributed on an "AS IS" BASIS,        }
+{  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. }
+{  See the License for the specific language governing permissions and      }
+{  limitations under the License.                                           }
+{                                                                           }
+{***************************************************************************}
+
 unit DUnitX.Loggers.XML.NUnit;
 
 interface
@@ -5,13 +31,17 @@ interface
 {$I DUnitX.inc}
 
 uses
-  classes,
+  {$IFDEF USE_NS}
+  System.Classes,
+  System.SysUtils,
+  System.Generics.Collections,
+  {$ELSE}
+  Classes,
   SysUtils,
+  Generics.Collections,
+  {$ENDIF}
   DUnitX.TestFramework,
-  DUnitX.Loggers.Null, 
-  Generics.Collections;
-
-//TODO : Rework https://github.com/VSoftTechnologies/Delphi-Fluent-XML so it doesn't use msxml and use it here?
+  DUnitX.Loggers.Null;
 
 type
   TDUnitXXMLNUnitLogger = class(TDUnitXNullLogger)
@@ -47,7 +77,11 @@ type
 implementation
 
 uses
+  {$IFDEF USE_NS}
+  System.TypInfo;
+  {$ELSE}
   TypInfo;
+  {$ENDIF}
 
 function IsValidXMLChar(wc: WideChar): Boolean;
 begin
@@ -67,6 +101,7 @@ function StripInvalidXML(const s: string): string;
 var
   i, count: Integer;
 begin
+  {$IFNDEF NEXTGEN}
   count := Length(s);
   setLength(result, count);
   for i := 1 to Count do // Iterate
@@ -76,11 +111,28 @@ begin
     else
       result[i] := ' ';
   end; // for}
+  {$ELSE}
+  count := s.Length;
+  SetLength(result, count);
+  for i := 0 to count - 1 do // Iterate
+  begin
+    if IsValidXMLChar(s.Chars[i]) then
+    begin
+      result := result.Remove(i, 1);
+      result := result.Insert(i, s.Chars[i]);
+    end
+    else
+    begin
+      result := result.Remove(i, 1);
+      result := result.Insert(i, s.Chars[i]);
+    end;
+  end; // for}
+  {$ENDIF}
 end;
-
 function EscapeForXML(const value: string; const isAttribute: boolean = True; const isCDATASection : Boolean = False): string;
 begin
   result := StripInvalidXML(value);
+  {$IFNDEF NEXTGEN}
   if isCDATASection  then
   begin
     Result := StringReplace(Result, ']]>', ']>',[rfReplaceAll]);
@@ -99,6 +151,26 @@ begin
     Result := StringReplace(result, '''', '&#39;',[rfReplaceAll]);
     Result := StringReplace(result, '"', '&quot;',[rfReplaceAll]);
   end;
+  {$ELSE}
+  if isCDATASection  then
+  begin
+    Result := Result.Replace(']]>', ']>', [rfReplaceAll]);
+    exit;
+  end;
+
+  //note we are avoiding replacing &amp; with &amp;amp; !!
+  Result := Result.Replace('&amp;', '[[-xy-amp--]]',[rfReplaceAll]);
+  Result := Result.Replace('&', '&amp;',[rfReplaceAll]);
+  Result := Result.Replace('[[-xy-amp--]]', '&amp;amp;',[rfReplaceAll]);
+  Result := Result.Replace('<', '&lt;',[rfReplaceAll]);
+  Result := Result.Replace('>', '&gt;',[rfReplaceAll]);
+
+  if isAttribute then
+  begin
+    Result := Result.Replace('''', '&#39;',[rfReplaceAll]);
+    Result := Result.Replace('"', '&quot;',[rfReplaceAll]);
+  end;
+  {$ENDIF}
 end;
 
 { TDUnitXXMLNUnitLogger }
@@ -111,13 +183,14 @@ var
   oldDecimalSeparator: Char;
   {$ENDIF}
 begin
+  inherited Create;
   {$IFDEF DELPHI_XE_UP }
   FFormatSettings := TFormatSettings.Create;
   FFormatSettings.ThousandSeparator := ',';
   FFormatSettings.DecimalSeparator := '.';
   {$ELSE}
-  oldThousandSeparator        := SysUtils.ThousandSeparator;
-  oldDecimalSeparator         := SysUtils.DecimalSeparator;
+  oldThousandSeparator        := {$IFDEF USE_NS}System.{$ENDIF}SysUtils.ThousandSeparator;
+  oldDecimalSeparator         := {$IFDEF USE_NS}System.{$ENDIF}DecimalSeparator;
   try
     SysUtils.ThousandSeparator := ',';
     SysUtils.DecimalSeparator := '.';
@@ -129,8 +202,8 @@ begin
   FOutputStream.WriteBuffer(preamble[0], Length(preamble));
   {$IFNDEF DELPHI_XE_UP}
   finally
-    SysUtils.ThousandSeparator := oldThousandSeparator;
-    SysUtils.DecimalSeparator  := oldDecimalSeparator;
+    {$IFDEF USE_NS}System.{$ENDIF}SysUtils.ThousandSeparator := oldThousandSeparator;
+    {$IFDEF USE_NS}System.{$ENDIF}SysUtils.DecimalSeparator  := oldDecimalSeparator;
   end;
   {$ENDIF}
 
@@ -143,10 +216,9 @@ begin
   inherited;
 end;
 
-function TDUnitXXMLNUnitLogger.Format(const Format: string;
-  const Args: array of const): String;
+function TDUnitXXMLNUnitLogger.Format(const Format: string; const Args: array of const): String;
 begin
-  Result := SysUtils.Format(Format, Args, FFormatSettings);
+  Result := {$IFDEF USE_NS}System.{$ENDIF}SysUtils.Format(Format, Args, FFormatSettings);
 end;
 
 procedure TDUnitXXMLNUnitLogger.Indent;
@@ -212,7 +284,7 @@ begin
 
   Indent;
   //TODO: Populate these properly.
-  WriteXMLLine('<environment nunit-version="DUnitX" clr-version="2.0.0.0" os-version="6.1.0.0" platform="Windows" cwd="c:\test" machine-name="mymachine" user="vincent" user-domain="finalbuilder.com"  />');
+//  WriteXMLLine('<environment nunit-version="DUnitX" clr-version="2.0.0.0" os-version="6.1.0.0" platform="Windows" cwd="" machine-name="" user="" user-domain=""  />');
   WriteXMLLine('<culture-info current-culture="en" current-uiculture="en" />');
   WriteXMLLine(Format('<test-suite type="Assembly" name="%s" executed="true" result="%s" success="%s" time="%s" asserts="0">',[sExeName,sResult,BoolToStr(RunResults.AllPassed,true),sTime]));
   Indent;

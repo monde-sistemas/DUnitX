@@ -37,7 +37,6 @@ interface
 uses
   DUnitX.TestFramework;
 
-
 type
   {$M+}
   [TestFixture('ExampleFixture1','General Example Tests')]
@@ -71,6 +70,11 @@ type
     [Test]
     procedure TestError;
 
+    [Test]
+    [MaxTime(2000)]
+    procedure TooLong;
+
+
     //Disabled test
     [Test(false)]
     procedure DontCallMe;
@@ -83,11 +87,17 @@ type
 
     procedure TestMeAnyway;
 
-  published
+    [Test]
+    procedure LogMessageTypes;
 
+    [Test]
     [Ignore('Because I said so!!!')]
-    procedure IgnoreMe;
+    procedure IgnoreMePublic;
 
+  published
+    //Because this is a published method, it doesn't require the [Test] attribute
+    [Ignore('Because he said so!!!')]
+    procedure IgnoreMePublished;
   end;
 
   [TestFixture]
@@ -136,12 +146,18 @@ type
 implementation
 
 uses
+  {$IFDEF USE_NS}
+  System.SysUtils,
+  System.Classes,
+  WinApi.Windows,
+  {$ELSE}
   SysUtils,
-  classes,
+  Classes,
+  Windows,
+  {$ENDIF}
   DUnitX.DUnitCompatibility;
 
 { TMyExampleTests }
-
 
 procedure TMyExampleTests.DontCallMe;
 begin
@@ -149,11 +165,23 @@ begin
   raise Exception.Create('DontCallMe was called!!!!');
 end;
 
-procedure TMyExampleTests.IgnoreMe;
+procedure TMyExampleTests.IgnoreMePublic;
 begin
-  TDUnitX.CurrentRunner.Status('IgnoreMe called');
-  raise Exception.Create('IgnoreMe was called when it has IgnoreAttibute !!!!');
+  TDUnitX.CurrentRunner.Status('IgnoreMePublic called');
+  raise Exception.Create('IgnoreMePublic was called when it has IgnoreAttibute !!!!');
+end;
 
+procedure TMyExampleTests.IgnoreMePublished;
+begin
+  TDUnitX.CurrentRunner.Status('IgnoreMePublished called');
+  raise Exception.Create('IgnoreMePublished was called when it has IgnoreAttibute !!!!');
+end;
+
+procedure TMyExampleTests.LogMessageTypes;
+begin
+  TDUnitX.CurrentRunner.Log(TLogLevel.Information, 'Information');
+  TDUnitX.CurrentRunner.Log(TLogLevel.Warning, 'Warning');
+  TDUnitX.CurrentRunner.Log(TLogLevel.Error, 'Error');
 end;
 
 procedure TMyExampleTests.Setup;
@@ -191,7 +219,6 @@ begin
   TDUnitX.CurrentRunner.Status(Format('TestOnce called with %d %d',[param1,param2]));
 end;
 
-
 procedure TMyExampleTests.TestTwo;
 {$IFDEF DELPHI_XE_UP}
 var
@@ -207,6 +234,15 @@ begin
   Assert.IsType<TObject>(x); /// a bit pointless since it's strongly typed.
   x.Free;
 {$ENDIF}
+end;
+
+procedure TMyExampleTests.TooLong;
+begin
+  {$IFDEF DELPHI_XE_UP}
+    TThread.Sleep(5000);
+  {$ELSE}
+    Windows.Sleep(5000);
+  {$ENDIF}
 end;
 
 { TExampleFixture2 }
@@ -237,12 +273,12 @@ end;
 
 constructor TExampleFixture3.Create;
 begin
-
+  //Empty
 end;
 
 destructor TExampleFixture3.Destroy;
 begin
-
+  //Empty
   inherited;
 end;
 

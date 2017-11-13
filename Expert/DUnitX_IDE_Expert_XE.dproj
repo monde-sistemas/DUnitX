@@ -27,6 +27,7 @@
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
 			<DCC_ImageBase>00400000</DCC_ImageBase>
+            <DCC_UnitSearchPath>..\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<DCC_Description>DUnitX IDE Expert</DCC_Description>
 			<VerInfo_Locale>1033</VerInfo_Locale>
 			<DesignOnlyPackage>true</DesignOnlyPackage>
@@ -55,7 +56,7 @@
 			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
 			<DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
 			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-			<DCC_DebugInformation>0</DCC_DebugInformation>
+			<DCC_DebugInformation>false</DCC_DebugInformation>
 		</PropertyGroup>
 		<ItemGroup>
 			<DelphiCompile Include="DUnitX_IDE_Expert_XE.dpk">
