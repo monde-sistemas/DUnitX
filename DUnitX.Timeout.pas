@@ -155,7 +155,9 @@ begin
 
   //Not sure why this was removed in previous revision, but it causes W1036 as
   //not being initialized if not present.
+  {$IF CompilerVersion < 32.0}
   elapsedTime := 0;
+  {$IFEND}
 
   if Terminated then
      exit;
