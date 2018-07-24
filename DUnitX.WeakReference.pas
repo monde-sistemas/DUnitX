@@ -46,6 +46,12 @@ Delphi 2010 and has so far proven to be very reliable.
 interface
 
 {$I DUnitX.inc}
+uses
+  {$IFDEF USE_NS}
+  System.Generics.Collections;
+  {$ELSE}
+  Generics.Collections;
+  {$ENDIF}
 
 type
   /// Implemented by our weak referenced object base class
@@ -60,25 +66,30 @@ type
   ///  it. It implements IInterface so the object can also be used just like
   ///  any normal reference counted objects in Delphi.
   TWeakReferencedObject = class(TObject, IInterface, IWeakReferenceableObject)
+  private const
+    objDestroyingFlag = Integer($80000000);
   protected
-    FWeakReferences : Array of Pointer;
+  {$IFNDEF AUTOREFCOUNT}
     FRefCount: Integer;
+  {$ENDIF}
+    FWeakReferences : TList<Pointer>;
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
     function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
     procedure AddWeakRef(value : Pointer);
     procedure RemoveWeakRef(value : Pointer);
-    function GetRefCount : integer;
+    function GetRefCount : integer; inline;
   public
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
     {$IFDEF NEXTGEN}[Result: Unsafe]{$ENDIF} class function NewInstance: TObject; override;
-    property RefCount: Integer read FRefCount;
+  {$IFNDEF AUTOREFCOUNT}
+    property RefCount: Integer read GetRefCount;
+  {$ENDIF}
   end;
 
   // This is our generic WeakReference interface
   IWeakReference<T : IInterface> = interface
-    ['{A6B88944-15A2-4FFD-B755-1B17960401BE}']
     function IsAlive : boolean;
     function Data : T;
   end;
@@ -86,7 +97,7 @@ type
   //The actual WeakReference implementation.
   TWeakReference<T: IInterface> = class(TInterfacedObject, IWeakReference<T>)
   private
-    FData : TObject;
+    FData : Pointer;
   protected
     function IsAlive : boolean;
     function Data : T;
@@ -95,6 +106,8 @@ type
     destructor Destroy;override;
   end;
 
+//only here to work around compiler limitation.
+function SafeMonitorTryEnter(const AObject: TObject): Boolean;
 
 implementation
 
@@ -119,11 +132,12 @@ type
     class function Increment(var Target: Integer): Integer; static; inline;
     class function Decrement(var Target: Integer): Integer; static; inline;
     class function Add(var Target: Integer; Increment: Integer): Integer;static;
+    class function CompareExchange(var Target: Integer; Value, Comparand: Integer): Integer; static;
   end;
 
 class function TInterlocked.Decrement(var Target: Integer): Integer;
 begin
-    result := Add(Target,-1);
+  result := Add(Target,-1);
 end;
 
 class function TInterlocked.Increment(var Target: Integer): Integer;
@@ -147,20 +161,38 @@ asm
   ADD  EAX,ECX
 end;
 {$ENDIF}
+
+class function TInterlocked.CompareExchange(var Target: Integer; Value, Comparand: Integer): Integer;
+asm
+  XCHG EAX,EDX
+  XCHG EAX,ECX
+  LOCK CMPXCHG [EDX],ECX
+end;
 {$ENDIF DELPHI_XE2_UPE2}
 
+//MonitorTryEnter doesn't do a nil check!
+function SafeMonitorTryEnter(const AObject: TObject): Boolean;
+begin
+  if AObject <> nil then
+    Result := TMonitor.TryEnter(AObject)
+  else
+    result := False;
+end;
 
 
 constructor TWeakReference<T>.Create(const data: T);
 var
-  weakRef : IWeakReferenceableObject;
-  d : IInterface;
+  target : IWeakReferenceableObject;
 begin
-  d := IInterface(data);
-  if Supports(d,IWeakReferenceableObject,weakRef) then
+  if data = nil then
+    raise Exception.Create(format('[%s] passed to TWeakReference was nil', [PTypeInfo(TypeInfo(T)).Name]));
+
+  inherited Create;
+
+  if Supports(IInterface(data),IWeakReferenceableObject,target) then
   begin
-    FData := d as TObject;
-    weakRef.AddWeakRef(@FData);
+    FData := IInterface(data) as TObject;
+    target.AddWeakRef(@FData);
   end
   else
     raise Exception.Create(SWeakReferenceError);
@@ -181,17 +213,22 @@ end;
 
 destructor TWeakReference<T>.Destroy;
 var
-  weakRef : IWeakReferenceableObject;
+  target : IWeakReferenceableObject;
 begin
-  if IsAlive then
+  if FData <> nil then
   begin
-    if Supports(FData,IWeakReferenceableObject,weakRef) then
+    if SafeMonitorTryEnter(FData) then //FData could become nil
     begin
-      weakRef.RemoveWeakRef(@FData);
-      weakRef := nil;
+      //get a strong reference to the target
+      if Supports(FData,IWeakReferenceableObject,target) then
+      begin
+        target.RemoveWeakRef(@FData);
+        target := nil; //release the reference asap.
+      end;
+      MonitorExit(FData);
     end;
+    FData := nil;
   end;
-  FData := nil;
   inherited;
 end;
 
@@ -203,47 +240,30 @@ end;
 { TWeakReferencedObject }
 
 procedure TWeakReferencedObject.AddWeakRef(value: Pointer);
-var
-  l : integer;
 begin
   MonitorEnter(Self);
   try
-    l := Length(FWeakReferences);
-    Inc(l);
-    SetLength(FWeakReferences,l);
-    FWeakReferences[l-1] := Value;
+    if FWeakReferences = nil then
+      FWeakReferences := TList<Pointer>.Create;
+    FWeakReferences.Add(value);
   finally
     MonitorExit(Self);
   end;
 end;
 
 procedure TWeakReferencedObject.RemoveWeakRef(value: Pointer);
-var
-  l : integer;
-  i : integer;
-  idx : integer;
 begin
   MonitorEnter(Self);
   try
-    l := Length(FWeakReferences);
-    if l > 0 then
-    begin
-      idx := -1;
-      for i := 0 to l - 1 do
-      begin
-        if idx <> -1 then
-        begin
-          FWeakReferences[i -1] := FWeakReferences[i];
-        end;
-        if FWeakReferences[i] = Value then
-        begin
-          FWeakReferences[i] := nil;
-          idx := i;
-        end;
-      end;
-      Dec(l);
-      SetLength(FWeakReferences,l);
-    end;
+    if FWeakReferences = nil then // should never happen
+      {$IFDEF DEBUG}
+      raise Exception.Create('FWeakReferences = nil');
+      {$ELSE}
+      exit;
+      {$ENDIF}
+    FWeakReferences.Remove(value);
+    if FWeakReferences.Count = 0 then
+      FreeAndNil(FWeakReferences);
   finally
     MonitorExit(Self);
   end;
@@ -251,21 +271,33 @@ end;
 
 procedure TWeakReferencedObject.AfterConstruction;
 begin
-  // Release the constructor's implicit refcount
+{$IFNDEF AUTOREFCOUNT}
   TInterlocked.Decrement(FRefCount);
+{$ENDIF}
 end;
 
 procedure TWeakReferencedObject.BeforeDestruction;
 var
+  value : PPointer;
   i: Integer;
 begin
+{$IFNDEF AUTOREFCOUNT}
   if RefCount <> 0 then
     System.Error(reInvalidPtr);
+{$ELSE}
+  inherited BeforeDestruction;
+{$ENDIF}
   MonitorEnter(Self);
   try
-    for i := 0 to Length(FWeakReferences) - 1 do
-       TObject(FWeakReferences[i]^) := nil;
-    SetLength(FWeakReferences,0);
+    if FWeakReferences <> nil then
+    begin
+      for i := 0 to FWeakReferences.Count -1 do
+      begin
+        value := FWeakReferences.Items[i];
+        value^ := nil;
+      end;
+      FreeAndNil(FWeakReferences);
+    end;
   finally
     MonitorExit(Self);
   end;
@@ -273,15 +305,17 @@ end;
 
 function TWeakReferencedObject.GetRefCount: integer;
 begin
-  result := FRefCount;
+  Result := FRefCount and not objDestroyingFlag;
 end;
 
 class function TWeakReferencedObject.NewInstance: TObject;
 begin
+  Result := inherited NewInstance;
+{$IFNDEF AUTOREFCOUNT}
   // Set an implicit refcount so that refcounting
   // during construction won't destroy the object.
-  Result := inherited NewInstance;
   TWeakReferencedObject(Result).FRefCount := 1;
+{$ENDIF}
 end;
 
 function TWeakReferencedObject.QueryInterface(const IID: TGUID; out Obj): HResult;
@@ -294,15 +328,37 @@ end;
 
 function TWeakReferencedObject._AddRef: Integer;
 begin
+{$IFNDEF AUTOREFCOUNT}
   Result := TInterlocked.Increment(FRefCount);
+{$ELSE}
+  Result := __ObjAddRef;
+{$ENDIF}
 end;
 
 function TWeakReferencedObject._Release: Integer;
-begin
-  Result := TInterlocked.Decrement(FRefCount);
-  if Result = 0  then
-    Destroy;
-end;
 
+{$IFNDEF AUTOREFCOUNT}
+  procedure __MarkDestroying(const Obj);
+  var
+    LRef: Integer;
+  begin
+    repeat
+      LRef := TWeakReferencedObject(Obj).FRefCount;
+    until TInterlocked.CompareExchange(TWeakReferencedObject(Obj).FRefCount, LRef or objDestroyingFlag, LRef) = LRef;
+  end;
+{$ENDIF}
+
+begin
+{$IFNDEF AUTOREFCOUNT}
+  Result := TInterlocked.Decrement(FRefCount);
+  if Result = 0 then
+  begin
+    __MarkDestroying(Self);
+    Destroy;
+  end;
+{$ELSE}
+  Result := __ObjRelease;
+{$ENDIF}
+end;
 
 end.

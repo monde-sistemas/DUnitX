@@ -900,7 +900,7 @@ begin
   Result := False;
 end;
 
-{$IFDEF XE3_UP}
+{$IFDEF DELPHI_XE3_UP}
 function ConvStr2DynArray(const ASource: TValue; ATarget: PTypeInfo; out AResult: TValue): Boolean;
 var
   s: string;
@@ -1359,7 +1359,7 @@ const
       // tkSet, tkClass, tkMethod, tkWChar, tkLString, tkWString
       ConvFail, ConvFail, ConvFail, ConvFail, ConvFail, ConvFail,
       // tkVariant, tkArray, tkRecord, tkInterface, tkInt64, tkDynArray
-      ConvFail, ConvFail, ConvFail, ConvFail, ConvStr2Ord, {$IFDEF XE3_UP}ConvStr2DynArray{$ELSE}ConvFail{$ENDIF},
+      ConvFail, ConvFail, ConvFail, ConvFail, ConvStr2Ord, {$IFDEF DELPHI_XE3_UP}ConvStr2DynArray{$ELSE}ConvFail{$ENDIF},
       // tkUString, tkClassRef, tkPointer, tkProcedure
       ConvFail, ConvFail, ConvFail, ConvFail
     ),
